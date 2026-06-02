@@ -1,6 +1,14 @@
-"use client";
-
 import { useState, useRef, useEffect } from "react";
+
+declare global {
+  interface Window {
+    storage: {
+      set(key: string, value: string, shared?: boolean): Promise<unknown>;
+      get(key: string, shared?: boolean): Promise<{value: string} | null>;
+    };
+    confirm(msg: string): boolean;
+  }
+}
 
 const S = `
   @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Noto+Serif+JP:wght@300;400;600&family=Space+Mono:wght@400;700&display=swap');
@@ -185,7 +193,7 @@ const DUAL_OPTS=["OFF（通常）","ON（一般向けと本人向けの二重構
 const CLIP_SECS=[15,30,60];
 const VOCAL_TEXTURE_SUNO=["soft warm vocal","powerful passionate vocal","sultry seductive vocal","clear crystalline vocal","dark brooding vocal","androgynous neutral vocal"];
 const VOCAL_RANGE_SUNO=["high register upper range","mid range vocal","low register deep vocal"];
-const VOCAL_ORIGIN_SUNO=["japanese vocal style j-pop vocal","native english vocalist western vocal style",null];
+const VOCAL_ORIGIN_SUNO: (string | null)[] =["japanese vocal style j-pop vocal","native english vocalist western vocal style",null];
 const LANG_RATIO_SUNO=["japanese lyrics only","mostly japanese with occasional english phrases","japanese lyrics 20 percent english","japanese and english mixed 30 percent english","equal japanese and english","full english lyrics","english and japanese mixed lyrics"];
 const CHORD_SUNO=["I-V-vi-IV bright bittersweet","ii-V-I jazz sophisticated urban","floating dreamy suspended harmony","minor key melancholic dark","emotional powerful chord resolution","retro nostalgic 80s 90s progression"];
 const BPM_SUNO=["slow ballad 60-72 BPM","mellow 73-84 BPM","mid-tempo 85-95 BPM","upbeat 96-108 BPM","energetic 109-120 BPM","uptempo 121 BPM and above"];
@@ -218,8 +226,8 @@ const REVISE_PATTERNS=[
   {num:"07",title:"最終チェックを依頼する",desc:"完成したと思っても必ず依頼する。",ex:"「これ以上にないか最終チェックして\nジャンルらしさ・テーマ一致・整合性を確認して」",qi:"これ以上にないか最終チェックして。ジャンルらしさ・テーマ一致・整合性を確認して"},
 ];
 
-function japaneseError(s,b){if(s===429)return"リクエスト上限に達しました。しばらく待ってから再試行してください。";if(s===401)return"認証エラーです。Claudeにログインした状態で使用してください。";if(s===500)return"AIサーバーでエラーが発生しました。少し待ってから再試行してください。";if(b&&b.includes("Invalid response format"))return"レスポンス形式エラーです。ページを再読み込みしてください。";return"エラーが発生しました（コード: "+s+"）。再試行してください。";}
-async function callAI(system,messages,onChunk,maxTokens){
+function japaneseError(s:number,b:string){if(s===429)return"リクエスト上限に達しました。しばらく待ってから再試行してください。";if(s===401)return"認証エラーです。Claudeにログインした状態で使用してください。";if(s===500)return"AIサーバーでエラーが発生しました。少し待ってから再試行してください。";if(b&&b.includes("Invalid response format"))return"レスポンス形式エラーです。ページを再読み込みしてください。";return"エラーが発生しました（コード: "+s+"）。再試行してください。";}
+async function callAI(system:string,messages:{role:string;content:string}[],onChunk:(r:string)=>void,maxTokens?:number){
   const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:maxTokens||1500,stream:true,system:system,messages:messages})});
   if(!res.ok){const b=await res.text().catch(function(){return"";});throw new Error(japaneseError(res.status,b));}
   if(res.body&&typeof res.body.getReader==="function"){
@@ -229,7 +237,7 @@ async function callAI(system,messages,onChunk,maxTokens){
         for(let i=0;i<lines.length;i++){if(!lines[i].startsWith("data:"))continue;const d=lines[i].slice(5).trim();if(d==="[DONE]")return full;
           try{const j=JSON.parse(d);if(j.type==="content_block_delta"&&j.delta&&j.delta.text){full+=j.delta.text;onChunk(full);}}catch(e){}}}
       return full;
-    }catch(e){if(full.length>0)return full;throw e;}
+    }catch(e:unknown){if(full.length>0)return full;throw e;}
   }
   const data=await res.json().catch(function(){return null;});
   if(!data||!data.content)throw new Error("AIからの応答が取得できませんでした。再試行してください。");
@@ -295,7 +303,7 @@ export default function App(){
   const[clipSection,setClipSection]=useState(0);
   const[clipPrompt,setClipPrompt]=useState("");
   const[copyOk,setCopyOk]=useState("");
-  const[insertOk,setInsertOk]=useState(null);
+  const[insertOk,setInsertOk]=useState<string|null>(null);
   const chatEndRef=useRef(null);
   useEffect(function(){if(chatEndRef.current)chatEndRef.current.scrollIntoView({behavior:"smooth"});},[chatDisplay]);
 
@@ -358,27 +366,27 @@ export default function App(){
     return parts.filter(function(p){return p.enabled;}).map(function(p){return p.tag;});
   }
   function getFirstTag(){const ep=getEnabledParts();return ep.length>0?ep[0]:"[Verse 1]";}
-  function isChorusFirst(){if(structMode==="basic")return false;const f=parts.find(function(p){return p.enabled;});return f&&f.id==="intro";}
+  function isChorusFirst():boolean{if(structMode==="basic")return false;const f=parts.find(function(p){return p.enabled;});return !!(f&&f.id==="intro");}
   function getLangInstr(){
     if(langRatio===0)return"全て日本語で書く（英語なし）";
     if(langRatio===5)return"全て英語で書く（全英詞）";
     if(langRatio===6)return"ジャンルに合わせて日本語と英語を自然に混ぜる";
     return LANG_RATIO_OPTS[langRatio]+"の割合で英語を混ぜる";
   }
-  function sf(k){return function(e){const v=e.target.value;setF(function(p){const n={};for(const k2 in p)n[k2]=p[k2];n[k]=v;return n;});};}
-  function togE(v){setEndings(function(p){return p.includes(v)?p.filter(function(x){return x!==v;}):p.concat([v]);});}
-  function togAge(i){setTargetAges(function(p){return p.includes(i)?p.filter(function(x){return x!==i;}):p.concat([i]);});}
-  function togKw(k){setSelKw(function(p){return p.includes(k)?p.filter(function(x){return x!==k;}):p.concat([k]);});}
-  function nullTog(val,setter){return function(i){setter(val===i?null:i);};}
+  function sf(k:string){return function(e:React.ChangeEvent<HTMLTextAreaElement|HTMLInputElement>){const v=e.target.value;setF(function(p){return Object.assign({},p,{[k]:v});});};}  
+  function togE(v:string){setEndings(function(p){return p.includes(v)?p.filter(function(x){return x!==v;}):p.concat([v]);});}
+  function togAge(i:number){setTargetAges(function(p){return p.includes(i)?p.filter(function(x){return x!==i;}):p.concat([i]);});}
+  function togKw(k:string){setSelKw(function(p){return p.includes(k)?p.filter(function(x){return x!==k;}):p.concat([k]);});}
+  function nullTog(val:number|null,setter:(v:number|null)=>void){return function(i:number){setter(val===i?null:i);};}
   function togglePart(id){setParts(function(p){return p.map(function(x){return x.id===id?Object.assign({},x,{enabled:!x.enabled}):x;});});}
   function movePart(idx,dir){setParts(function(prev){const next=prev.slice();const t=idx+dir;if(t<0||t>=next.length)return prev;const tmp=next[idx];next[idx]=next[t];next[t]=tmp;return next;});}
-  async function doCopy(text,key){
+  async function doCopy(text:string,key:string){
     if(!text)return;
-    try{await navigator.clipboard.writeText(text);setCopyOk(key);setTimeout(function(){setCopyOk("");},2500);return;}catch(e){}
+    try{await navigator.clipboard.writeText(text);setCopyOk(key);setTimeout(function(){setCopyOk("");},2500);return;}catch(e:unknown){void e;}
     const ta=document.createElement("textarea");ta.value=text;ta.style.position="fixed";ta.style.opacity="0";document.body.appendChild(ta);ta.focus();ta.select();
-    try{document.execCommand("copy");setCopyOk(key);setTimeout(function(){setCopyOk("");},2500);}catch(e){}document.body.removeChild(ta);
+    try{document.execCommand("copy");setCopyOk(key);setTimeout(function(){setCopyOk("");},2500);}catch(e:unknown){void e;}document.body.removeChild(ta);
   }
-  function copyLabel(key,def){return copyOk===key?"✓ COPIED":def;}
+  function copyLabel(key:string,def:string){return copyOk===key?"✓ COPIED":def;}
   function resetCreate(){
     if(!window.confirm("入力内容を全てリセットします。よろしいですか？"))return;
     setF(initF);setEndings([]);setGenreMode("auto");setSelectedGenres([]);setCustomGenreName("");setCustomGenreSuno("");setCustomGenreStyle("");
@@ -411,7 +419,7 @@ export default function App(){
     kws.push(vocalGender===0?"male vocalist":"female vocalist");
     if(vocalTexture!==null)kws.push(VOCAL_TEXTURE_SUNO[vocalTexture]);
     if(vocalRange!==null)kws.push(VOCAL_RANGE_SUNO[vocalRange]);
-    if(vocalOrigin!==null&&VOCAL_ORIGIN_SUNO[vocalOrigin])kws.push(VOCAL_ORIGIN_SUNO[vocalOrigin]);
+    if(vocalOrigin!==null&&VOCAL_ORIGIN_SUNO[vocalOrigin])kws.push(VOCAL_ORIGIN_SUNO[vocalOrigin] as string);
     if(langRatio!==null&&langRatio!==6)kws.push(LANG_RATIO_SUNO[langRatio]);
     if(chordProg!==null)kws.push(CHORD_SUNO[chordProg]);
     if(bpm!==null)kws.push(BPM_SUNO[bpm]);
@@ -436,11 +444,11 @@ export default function App(){
     const g=getGenre();const firstTag=getFirstTag();
     return"あなたはプロの作詞家・音楽プロデューサーです。\nジャンル："+g.name+"\nルール：ユーザーの指示に従って歌詞を修正する・修正後は必ず歌詞全体を"+firstTag+"から始まる形で出力する・前置き・説明文は一切禁止・歌詞のみを出力する・行数・音数・整合性を常に確認する・"+g.name+"らしさを維持する";
   }
-  function buildDiagSys(mat,settings){
+  function buildDiagSys(mat:string,settings:string){
     const g=getGenre();const firstTag=getFirstTag();
     return"あなたは以下3つの専門家として歌詞の最終診断を行います。診断のみ行う。修正は絶対に行わない。\n\n【元の素材】\n"+mat+"\n【制作設定】\n"+settings+"\n\n① プロの作詞家として審査：\n・行数・音数の整合性（同じパートは揃ってるか）\n・伏線と回収の成立\n・比喩の一貫性（軸がブレてないか）\n・テーマ・核心との一致（素材と照合）\n・感情の流れ（始まり→変化→結末が自然か）\n\n② 音楽プロデューサーとして審査：\n・"+g.name+"らしさ（基準："+g.checkKw+"）\n・設定したボーカルイメージと語感の一致\n・言語割合の遵守（"+getLangInstr()+"）\n・構成の遵守（"+firstTag+"から始まってるか）\n\n③ 出力形式（必ず守る）：\n各項目を ✅ 問題なし / ⚠️ 問題あり（具体的に何が問題か）で記載\n最後に「修正が必要な項目：〇〇」を明記\n「全て修正して」または「〇〇だけ修正して」のように指示してください、と案内する";
   }
-  function buildSunoDiagSys(settings){
+  function buildSunoDiagSys(settings:string){
     const g=getGenre();
     return"あなたは音楽生成AIプロンプトの専門エンジニアとして最終診断を行います。診断のみ行う。修正は絶対に行わない。\n\n【制作設定】\n"+settings+"\n\n審査項目：\n・1000文字以内か（文字数を報告する）\n・ジャンル（"+g.name+"）のキーワードが適切に含まれているか\n・ボーカル設定が含まれているか\n・感情・雰囲気・楽器・空気感のバランス\n・重複・矛盾するキーワードがないか\n・設定した内容との整合性\n\n出力形式（必ず守る）：\n各項目を ✅ 問題なし / ⚠️ 問題あり（具体的に）で記載\n最後に「修正が必要な項目：〇〇」を明記\n「プロンプトを修正して」または「〇〇だけ修正して」のように指示してください、と案内する";
   }
@@ -457,7 +465,7 @@ export default function App(){
     const mat=buildMaterial();if(!mat.trim()){alert("CREATEタブで素材を入力してください");return;}
     setLoading("confirm");setConfirmed("");
     const sys="あなたはプロの作詞家です。ユーザーが送った曲の素材を読んで、以下を日本語で返してください。\n1.「この曲の核心」を一文で言語化する\n2.「感情の流れ」を3段階で整理する（始まり→変化→結末）\n3. 確認したい点があれば1〜2個質問する\n形式：\n【核心】〇〇\n【感情の流れ】〇〇→〇〇→〇〇\n【確認】〇〇";
-    try{await callAI(sys,[{role:"user",content:"以下の素材を整理してください。\n\n"+mat}],function(r){setConfirmed(r);});}catch(e){setConfirmed("エラー: "+e.message);}
+    try{await callAI(sys,[{role:"user",content:"以下の素材を整理してください。\n\n"+mat}],function(r){setConfirmed(r);});}catch(e){setConfirmed("エラー: "+(e instanceof Error?e.message:String(e)));}
     setLoading("");
   }
   async function doLyric(){
@@ -470,13 +478,13 @@ export default function App(){
       await callAI(buildLyricSys(),[{role:"user",content:userMsg}],function(r){result=r;setLyric(extractLyrics(r));},2000);
       const clean=extractLyrics(result);
       setLyricHistory([{role:"user",content:userMsg},{role:"assistant",content:clean}]);
-    }catch(e){setLyric("エラー: "+e.message);}
+    }catch(e){setLyric("エラー: "+(e instanceof Error?e.message:String(e)));}
     setLoading("");
   }
   async function doLyricDiag(){
     if(!lyric)return;setLoading("lyricDiag");setLyricDiagnosis("");
     try{await callAI(buildDiagSys(buildMaterial(),buildSettings()),[{role:"user",content:"以下の歌詞を診断してください。\n\n"+lyric}],function(r){setLyricDiagnosis(r);},2000);}
-    catch(e){setLyricDiagnosis("エラー: "+e.message);}
+    catch(e){setLyricDiagnosis("エラー: "+(e instanceof Error?e.message:String(e)));}
     setLoading("");
   }
   async function sendChat(){
@@ -490,45 +498,45 @@ export default function App(){
       let r="";
       await callAI(buildChatSys(),nh,function(res){r=res;const c=extractLyrics(res);setChatDisplay(nd.concat([{role:"assistant",content:c}]));if(c.includes("[")&&c.length>50)setLyric(c);},2000);
       setLyricHistory(nh.concat([{role:"assistant",content:extractLyrics(r)}]));
-    }catch(e){setChatDisplay(nd.concat([{role:"assistant",content:"エラー: "+e.message}]));}
+    }catch(e){setChatDisplay(nd.concat([{role:"assistant",content:"エラー: "+(e instanceof Error?e.message:String(e))}]));}
     setLoading("");
   }
-  function handleKey(e){if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendChat();}}
+  function handleKey(e:React.KeyboardEvent<HTMLTextAreaElement>){if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendChat();}}
   async function doTitle(){
     if(!lyric){alert("先に歌詞を生成してください");return;}
     setLoading("title");setTitleParsed([]);setSelectedTitle("");setTitleMode("generated");
     const sys="あなたはプロの作詞家です。歌詞のタイトル候補を3つ出してください。\n1. 日本語タイトル\n2. 英語タイトル\n3. 日英ミックスタイトル（例：夜の蝶 / A Love Story）\nそれぞれ1行ずつ、番号付きで出力してください。タイトルの値のみで説明不要。";
     try{let r="";await callAI(sys,[{role:"user",content:"以下の歌詞のタイトル候補を出してください。\n\n"+lyric}],function(res){r=res;});setTitleParsed(parseTitles(r));}
-    catch(e){setTitleParsed([{label:"エラー",value:e.message}]);}
+    catch(e){setTitleParsed([{label:"エラー",value:e instanceof Error?e.message:String(e)}]);}
     setLoading("");
   }
   async function doHira(){
     if(!lyric){alert("先に歌詞を生成してください");return;}
     setLoading("hira");setHira("");
     const sys="あなたはプロの作詞家です。歌詞の中で音楽生成AIが読み間違いしやすい漢字をひらがなに変換してください。\n絶対ルール：音数（モーラ数）が変わらないように変換する・変換後の歌詞全体を先に出力する・前置き・説明は禁止・歌詞出力後に「---変換箇所---」と書いて変換した箇所のリストを添える";
-    try{await callAI(sys,[{role:"user",content:lyric}],function(r){setHira(r);},2000);}catch(e){setHira("エラー: "+e.message);}
+    try{await callAI(sys,[{role:"user",content:lyric}],function(r){setHira(r);},2000);}catch(e){setHira("エラー: "+(e instanceof Error?e.message:String(e)));}
     setLoading("");
   }
   async function doSuno(){
     setLoading("suno");setSunoOut("");setSunoDiagnosis("");
     const g=getGenre();const kws=buildSunoKw();
     const userMsg="以下の情報から"+g.name+"の最高の音楽生成AIプロンプトを英語で生成してください。\n\n【素材の要約】\n"+buildMaterial()+"【制作設定】\n"+buildSettings()+"\n【使用するキーワード（必ず含める）】\n"+kws+"\n\nまた、この素材に合う他のジャンルも2〜3個提案があれば、プロンプトの後に「---ジャンル提案---」として1行ずつ記載してください。";
-    try{await callAI(buildSunoSys(),[{role:"user",content:userMsg}],function(r){setSunoOut(r);});}catch(e){setSunoOut("エラー: "+e.message);}
+    try{await callAI(buildSunoSys(),[{role:"user",content:userMsg}],function(r){setSunoOut(r);});}catch(e){setSunoOut("エラー: "+(e instanceof Error?e.message:String(e)));}
     setLoading("");
   }
   async function doSunoDiag(){
     const prompt=getSunoPromptOnly();if(!prompt||prompt.startsWith("エラー")){alert("先にプロンプトを生成してください");return;}
     setLoading("sunoDiag");setSunoDiagnosis("");
     try{await callAI(buildSunoDiagSys(buildSettings()),[{role:"user",content:prompt}],function(r){setSunoDiagnosis(r);},1500);}
-    catch(e){setSunoDiagnosis("エラー: "+e.message);}
+    catch(e){setSunoDiagnosis("エラー: "+(e instanceof Error?e.message:String(e)));}
     setLoading("");
   }
-  async function doSunoFix(instruction){
+  async function doSunoFix(instruction:string){
     const prompt=getSunoPromptOnly();if(!prompt)return;
     setLoading("sunoFix");setSunoOut("");
     const sys=buildSunoSys()+"\n修正後はプロンプトのみを出力する。説明禁止。";
     try{await callAI(sys,[{role:"user",content:"以下の音楽生成AIプロンプトを修正してください。\n\n"+prompt+"\n\n指示："+instruction}],function(r){setSunoOut(r);});}
-    catch(e){setSunoOut("エラー: "+e.message);}
+    catch(e){setSunoOut("エラー: "+(e instanceof Error?e.message:String(e)));}
     setLoading("");
   }
   async function doClipPrompt(){
@@ -539,7 +547,7 @@ export default function App(){
     const sectionLabel=clipSection===0?"AIにおまかせ（最もフックになる部分）":(ep[clipSection-1]||"AIにおまかせ");
     const sys=buildSunoSys()+"\nクリップ用の音楽生成AIプロンプトを生成する。1000文字以内。プロンプトのみ出力。";
     const userMsg="以下の音楽生成AIプロンプトをベースに、クリップ用プロンプトを生成してください。\n\n【ベースプロンプト】\n"+getSunoPromptOnly()+"\n\n【クリップ設定】\n秒数："+secLabel+"\n使用する部分："+sectionLabel+"\n\nクリップ用のキーワード（short clip, highlight, hook section）を追加してください。";
-    try{await callAI(sys,[{role:"user",content:userMsg}],function(r){setClipPrompt(r);});}catch(e){setClipPrompt("エラー: "+e.message);}
+    try{await callAI(sys,[{role:"user",content:userMsg}],function(r){setClipPrompt(r);});}catch(e){setClipPrompt("エラー: "+(e instanceof Error?e.message:String(e)));}
     setLoading("");
   }
   async function doWorldCard(){
@@ -549,22 +557,22 @@ export default function App(){
     const titleLine=(titleMode==="custom"?customTitle:selectedTitle)||"（未設定）";
     const sys="あなたはプロのアートディレクター兼作詞家です。曲の世界観を、画像・映像制作にそのまま使える形で言語化します。\n出力形式（この形式のみ・前置きや説明は禁止）：\n\nタイトル：（曲のタイトル）\n\nテーマ：\n（曲の核心を2行以内で）\n\n感情・雰囲気：\n（・区切りで5個程度）\n\n色調イメージ：\n（・区切りで具体的な色や光の情景を5個程度）\n\nシーンイメージ：\n（・区切りで映像に使える場面を5個程度）\n\nキーワード（英語）：\n（画像・映像生成にそのまま使える英語キーワードをカンマ区切りで10〜15個）";
     const userMsg="以下の素材・歌詞・設定から曲の世界観カードを作成してください。\n\n【タイトル】\n"+titleLine+"\n\n【素材】\n"+mat+"\n【制作設定】\n"+buildSettings()+"\n【歌詞】\n"+lyric;
-    try{await callAI(sys,[{role:"user",content:userMsg}],function(r){setWorldCard(r);},2000);}catch(e){setWorldCard("エラー: "+e.message);}
+    try{await callAI(sys,[{role:"user",content:userMsg}],function(r){setWorldCard(r);},2000);}catch(e){setWorldCard("エラー: "+(e instanceof Error?e.message:String(e)));}
     setLoading("");
   }
-  function insertPattern(text,num){setChatInput(text);setInsertOk(num);setTimeout(function(){setInsertOk(null);},2000);setTab("generate");}
-  function saveProject(){
+  function insertPattern(text:string,num:string){setChatInput(text);setInsertOk(num);setTimeout(function(){setInsertOk(null);},2000);setTab("generate");}
+  async function saveProject(){
     if(!pkey.trim()){setPst("err:プロジェクト名を入力してください");return;}
     const data=JSON.stringify({F,endings,genreMode,selectedGenres,customGenreName,customGenreSuno,customGenreStyle,vocalGender,langRatio,vocalTexture,vocalRange,vocalOrigin,chordProg,bpm,targetAges,targetGender,metaphor,dual,structMode,parts,selKw,sunoExtra});
-    try{localStorage.setItem("tnp:"+pkey.trim(),data);setPst("ok:「"+pkey.trim()+"」を保存しました");}
+    try{const r=await window.storage.set("tnp:"+pkey.trim(),data,true);setPst(r?"ok:「"+pkey.trim()+"」を保存しました":"err:保存に失敗しました");}
     catch(e){setPst("err:保存に失敗しました");}
   }
-  function loadProject(){
+  async function loadProject(){
     if(!pkey.trim()){setPst("err:プロジェクト名を入力してください");return;}
     try{
-      const raw=localStorage.getItem("tnp:"+pkey.trim());
-      if(!raw){setPst("err:プロジェクトが見つかりません");return;}
-      const d=JSON.parse(raw);
+      const r=await window.storage.get("tnp:"+pkey.trim(),true);
+      if(!r){setPst("err:プロジェクトが見つかりません");return;}
+      const d=JSON.parse(r.value);
       if(d.F)setF(d.F);if(d.endings)setEndings(d.endings);if(d.genreMode)setGenreMode(d.genreMode);if(d.selectedGenres)setSelectedGenres(d.selectedGenres);
       if(d.customGenreName)setCustomGenreName(d.customGenreName);if(d.customGenreSuno)setCustomGenreSuno(d.customGenreSuno);if(d.customGenreStyle)setCustomGenreStyle(d.customGenreStyle);
       if(d.vocalGender!==undefined)setVocalGender(d.vocalGender);if(d.langRatio!==undefined)setLangRatio(d.langRatio);
@@ -578,9 +586,9 @@ export default function App(){
     }catch(e){setPst("err:読み込みに失敗しました");}
   }
   const psClass=pst.startsWith("ok:")?"ok":"err";
-  function Seg(props){return (<div className="t-seg">{props.opts.map(function(o,i){return <div key={i} className={"t-seg-o"+(props.val===i?" on":"")} onClick={function(){props.onChange(i);}}>{o}</div>;})}</div>);}
-  function NullSeg(props){return (<div className="t-seg">{props.opts.map(function(o,i){return <div key={i} className={"t-seg-o"+(props.val===i?" on":"")} onClick={function(){props.onChange(props.val===i?null:i);}}>{o}</div>;})}</div>);}
-  function Badge(props){const map={req:"必須",rec:"★ 推奨",opt:"任意"};return <span className={"t-badge "+props.type}>{map[props.type]}</span>;}
+  function Seg(props:{opts:string[];val:number;onChange:(i:number)=>void}){return (<div className="t-seg">{props.opts.map(function(o,i){return <div key={i} className={"t-seg-o"+(props.val===i?" on":"")} onClick={function(){props.onChange(i);}}>{o}</div>;})}</div>);}
+  function NullSeg(props:{opts:string[];val:number|null;onChange:(i:number|null)=>void}){return (<div className="t-seg">{props.opts.map(function(o,i){return <div key={i} className={"t-seg-o"+(props.val===i?" on":"")} onClick={function(){props.onChange(props.val===i?null:i);}}>{o}</div>;})}</div>);}
+  function Badge(props:{type:"req"|"rec"|"opt"}){const map:{[k:string]:string}={req:"必須",rec:"★ 推奨",opt:"任意"};return <span className={"t-badge "+props.type}>{map[props.type]}</span>;}
   const LAYERS=[
     {n:"LAYER 01",t:"事実を出す",h:"何があったか",qs:[
       {l:"Q01",t:"この曲にしたい出来事を、一言で言うと？",n:"例：キャバのNo.1だった子を自分から手放してしまった話",k:"q01",r:2,badge:"req",bn:"テーマの軸。なければ歌詞の方向が定まらない。"},
