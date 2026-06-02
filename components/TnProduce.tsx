@@ -268,10 +268,9 @@ const REVISE_PATTERNS:RevisePattern[]=[
   {num:"07",title:"最終チェックを依頼する",desc:"完成したと思っても必ず依頼する。",ex:"「これ以上にないか最終チェックして\nジャンルらしさ・テーマ一致・整合性を確認して」",qi:"これ以上にないか最終チェックして。ジャンルらしさ・テーマ一致・整合性を確認して"},
 ];
 
-function japaneseError(s:number,b:string){if(s===429)return"リクエスト上限に達しました。しばらく待ってから再試行してください。";if(s===401)return"認証エラーです。Claudeにログインした状態で使用してください。";if(s===500)return"AIサーバーでエラーが発生しました。少し待ってから再試行してください。";if(b&&b.includes("Invalid response format"))return"レスポンス形式エラーです。ページを再読み込みしてください。";return"エラーが発生しました（コード: "+s+"）。再試行してください。";}
 async function callAI(system:string,messages:{role:string;content:string}[],onChunk:(r:string)=>void,maxTokens?:number){
-  const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:maxTokens||1500,stream:true,system:system,messages:messages})});
-  if(!res.ok){const b=await res.text().catch(function(){return"";});throw new Error(japaneseError(res.status,b));}
+  const res=await fetch("/api/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({system,messages,maxTokens:maxTokens||1500})});
+  if(!res.ok){const b=await res.json().catch(function(){return{error:"エラーが発生しました"};});throw new Error(b.error||"エラーが発生しました");}
   if(res.body&&typeof res.body.getReader==="function"){
     const reader=res.body.getReader();const dec=new TextDecoder();let buf="";let full="";
     try{
@@ -281,10 +280,7 @@ async function callAI(system:string,messages:{role:string;content:string}[],onCh
       return full;
     }catch(e:unknown){if(full.length>0)return full;throw e;}
   }
-  const data=await res.json().catch(function(){return null;}) as {content:{type:string;text?:string}[]}|null;
-  if(!data||!data.content)throw new Error("AIからの応答が取得できませんでした。再試行してください。");
-  let text="";for(let i=0;i<data.content.length;i++){if(data.content[i].type==="text")text+=data.content[i].text??"";}
-  onChunk(text);return text;
+  return full="";
 }
 function extractLyrics(t:string):string{const i=t.indexOf("[");return i>0?t.slice(i):t;}
 function extractHira(t:string):string{const i=t.indexOf("[");if(i<0)return t;const s=t.indexOf("---");return s>0?t.slice(i,s).trim():t.slice(i);}
