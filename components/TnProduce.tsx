@@ -1,5 +1,22 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
+
+type LayerQ = {
+  l: string;
+  t: string;
+  n: string;
+  k: string;
+  r: number;
+  badge: "req" | "rec" | "opt";
+  bn: string;
+};
+type Layer = {
+  n: string;
+  t: string;
+  h: string;
+  qs: LayerQ[];
+};
+
 
 declare global {
   interface Window {
@@ -165,7 +182,15 @@ const S = `
   ::-webkit-scrollbar-thumb{background:var(--bd);border-radius:2px;}
 `;
 
-const GENRES = [
+type Genre = {
+  id: string;
+  name: string;
+  sunoKw: string;
+  lyricStyle: string;
+  checkKw: string;
+};
+
+const GENRES: Genre[] = [
   {id:"city_pop",name:"ネオシティポップ",sunoKw:"modern city pop, japanese city pop, jazz-infused city pop, neo soul, smooth R&B",lyricStyle:"夜に聴いて心地よい空気感・説明しすぎない余白・都会的でおしゃれな比喩",checkKw:"都会的な洗練さ・余白・おしゃれな語感・夜の空気感"},
   {id:"jpop",name:"J-POP",sunoKw:"j-pop, japanese pop, catchy melody, bright emotional, mainstream pop",lyricStyle:"共感しやすい言葉・キャッチーで明快なサビ・感情に直接訴える表現",checkKw:"J-POPらしいキャッチさ・わかりやすさ・明快なサビ・共感性"},
   {id:"ballad",name:"バラード",sunoKw:"ballad, slow emotional, piano led, heartfelt, cinematic strings",lyricStyle:"感情をゆっくり丁寧に描写・余韻を大切に・言葉の重みを優先",checkKw:"バラードらしい感情の重さ・丁寧な描写・余韻のある言葉"},
@@ -199,7 +224,14 @@ const VOCAL_ORIGIN_KW: (string | null)[] =["japanese vocal style j-pop vocal","n
 const LANG_RATIO_KW=["japanese lyrics only","mostly japanese with occasional english phrases","japanese lyrics 20 percent english","japanese and english mixed 30 percent english","equal japanese and english","full english lyrics","english and japanese mixed lyrics"];
 const CHORD_KW=["I-V-vi-IV bright bittersweet","ii-V-I jazz sophisticated urban","floating dreamy suspended harmony","minor key melancholic dark","emotional powerful chord resolution","retro nostalgic 80s 90s progression"];
 const BPM_KW=["slow ballad 60-72 BPM","mellow 73-84 BPM","mid-tempo 85-95 BPM","upbeat 96-108 BPM","energetic 109-120 BPM","uptempo 121 BPM and above"];
-const DEFAULT_PARTS=[
+type Part = {
+  id: string;
+  name: string;
+  tag: string;
+  enabled: boolean;
+};
+
+const DEFAULT_PARTS:Part[]=[
   {id:"intro",name:"Intro Chorus",tag:"[Intro Chorus]",enabled:false},
   {id:"v1",name:"Verse 1",tag:"[Verse 1]",enabled:true},
   {id:"pre1",name:"Pre-Chorus 1",tag:"[Pre-Chorus]",enabled:true},
@@ -218,7 +250,15 @@ const EXTRA_KW={
 };
 const CHECKS_BEFORE=["テーマの核心を一言で言えるか","登場人物の関係性は明確か","感情の流れに起承転結があるか","最後の終わり方は決まってるか","ターゲットリスナーは誰か","比喩の軸は何か","言語の割合は決まってるか"];
 const CHECKS_AFTER=["同じパートの行数は揃ってるか","ひらがなの音数は揃ってるか","伏線と回収は成立してるか","比喩が多すぎないか","説明しすぎてないか","選択したジャンルらしいか","音楽生成AIが読み間違いしそうな漢字はないか","プロンプトが1000文字以内に収まってるか"];
-const REVISE_PATTERNS=[
+type RevisePattern = {
+  num: string;
+  title: string;
+  desc: string;
+  ex: string;
+  qi: string;
+};
+
+const REVISE_PATTERNS:RevisePattern[]=[
   {num:"01",title:"言葉をそのまま差し替える",desc:"気になる言葉を引用して↓で新しい言葉を提案するだけ。",ex:"「素直に過ぎていった」\n↓\n「忙しく過ぎていった」",qi:"〇〇\n↓\n△△"},
   {num:"02",title:"方向性だけ伝えて候補を出してもらう",desc:"どう変えたいか方向性だけ伝えれば複数の候補が返ってくる。",ex:"「この表現はストレートすぎるから比喩を使って」",qi:"この表現はストレートすぎるから比喩を使って"},
   {num:"03",title:"感覚的な言葉で伝える",desc:"「変」「ダサい」「多すぎ」など感覚的な言葉だけでOK。",ex:"「詰め込みすぎ」「ダサい気がする」",qi:"全体的に詰め込みすぎ。削ってほしい"},
@@ -241,9 +281,9 @@ async function callAI(system:string,messages:{role:string;content:string}[],onCh
       return full;
     }catch(e:unknown){if(full.length>0)return full;throw e;}
   }
-  const data=await res.json().catch(function(){return null;});
+  const data=await res.json().catch(function(){return null;}) as {content:{type:string;text?:string}[]}|null;
   if(!data||!data.content)throw new Error("AIからの応答が取得できませんでした。再試行してください。");
-  let text="";for(let i=0;i<data.content.length;i++){if(data.content[i].type==="text")text+=data.content[i].text;}
+  let text="";for(let i=0;i<data.content.length;i++){if(data.content[i].type==="text")text+=data.content[i].text??"";}
   onChunk(text);return text;
 }
 function extractLyrics(t:string):string{const i=t.indexOf("[");return i>0?t.slice(i):t;}
@@ -279,7 +319,7 @@ export default function App(){
   const[metaphor,setMetaphor]=useState(0);
   const[dual,setDual]=useState(0);
   const[structMode,setStructMode]=useState("basic");
-  const[parts,setParts]=useState(DEFAULT_PARTS.map(function(p){return Object.assign({},p);}));
+  const[parts,setParts]=useState<Part[]>(DEFAULT_PARTS.map(function(p){return Object.assign({},p) as Part;}));
   const[pkey,setPkey]=useState("");
   const[pst,setPst]=useState("");
   const[selKw,setSelKw]=useState<string[]>([]);
@@ -310,9 +350,9 @@ export default function App(){
   useEffect(function(){if(chatEndRef.current)chatEndRef.current.scrollIntoView({behavior:"smooth"});},[chatDisplay]);
 
   // ジャンル関連：モードに応じた情報を返す
-  function getGenreObjs(){
+  function getGenreObjs():Genre[]{
     // selectedGenresのID配列からジャンルオブジェクト配列を返す（順番=主従）
-    return selectedGenres.map(function(id){return GENRES.find(function(x){return x.id===id;});}).filter(Boolean);
+    return selectedGenres.map(function(id){return GENRES.find(function(x){return x.id===id;});}).filter((g):g is Genre=>g!==undefined);
   }
   function getGenreName(){
     if(genreMode==="auto")return "AIにおまかせ（素材から判断）";
@@ -348,14 +388,14 @@ export default function App(){
   // 後方互換：getGenre()は名前のみ参照する箇所用
   function getGenre(){return {name:getGenreName(),promptKw:getGenrePromptKw(),lyricStyle:getGenreLyricStyle(),checkKw:getGenreCheckKw()};}
 
-  function toggleGenre(id){
+  function toggleGenre(id:string){
     setSelectedGenres(function(prev){
       if(prev.includes(id))return prev.filter(function(x){return x!==id;});
       if(prev.length>=3)return prev; // 最大3
       return prev.concat([id]);
     });
   }
-  function moveGenre(idx,dir){
+  function moveGenre(idx:number,dir:number){
     setSelectedGenres(function(prev){
       const next=prev.slice();const t=idx+dir;
       if(t<0||t>=next.length)return prev;
@@ -380,8 +420,8 @@ export default function App(){
   function togAge(i:number){setTargetAges(function(p){return p.includes(i)?p.filter(function(x){return x!==i;}):p.concat([i]);});}
   function togKw(k:string){setSelKw(function(p){return p.includes(k)?p.filter(function(x){return x!==k;}):p.concat([k]);});}
   function nullTog(val:number|null,setter:(v:number|null)=>void){return function(i:number){setter(val===i?null:i);};}
-  function togglePart(id){setParts(function(p){return p.map(function(x){return x.id===id?Object.assign({},x,{enabled:!x.enabled}):x;});});}
-  function movePart(idx,dir){setParts(function(prev){const next=prev.slice();const t=idx+dir;if(t<0||t>=next.length)return prev;const tmp=next[idx];next[idx]=next[t];next[t]=tmp;return next;});}
+  function togglePart(id:string){setParts(function(p){return p.map(function(x){return x.id===id?Object.assign({},x,{enabled:!x.enabled}):x;});});}
+  function movePart(idx:number,dir:number){setParts(function(prev){const next=prev.slice();const t=idx+dir;if(t<0||t>=next.length)return prev;const tmp=next[idx];next[idx]=next[t];next[t]=tmp;return next;});}
   async function doCopy(text:string,key:string){
     if(!text)return;
     try{await navigator.clipboard.writeText(text);setCopyOk(key);setTimeout(function(){setCopyOk("");},2500);return;}catch(e:unknown){void e;}
@@ -394,7 +434,7 @@ export default function App(){
     setF(initF);setEndings([]);setGenreMode("auto");setSelectedGenres([]);setCustomGenreName("");setCustomGenreStyle("");
     setVocalGender(0);setLangRatio(6);setShowAdv(false);setVocalTexture(null);setVocalRange(null);setVocalOrigin(null);
     setChordProg(null);setBpm(null);setTargetAges([]);setTargetGender(null);setMetaphor(0);setDual(0);
-    setStructMode("basic");setParts(DEFAULT_PARTS.map(function(p){return Object.assign({},p);}));
+    setStructMode("basic");setParts(DEFAULT_PARTS.map(function(p){return Object.assign({},p) as Part;}));
   }
   function buildMaterial(){
     const qs=[["この曲を一言で言うと",F.q01],["登場人物と関係性",F.q02],["出来事の流れ",F.q03],["一番鮮明な場面",F.q04],["届いた言葉・メッセージ",F.q05],["2人だけが知ってるもの",F.q06],["言えなかった言葉",F.q07],["表向きの感情",F.q08],["本当の感情",F.q09],["今も続く感情",F.q10],["相手への気持ち",F.q11],["この曲の核心",F.q12]];
@@ -591,7 +631,7 @@ export default function App(){
   function Seg(props:{opts:string[];val:number;onChange:(i:number)=>void}){return (<div className="t-seg">{props.opts.map(function(o,i){return <div key={i} className={"t-seg-o"+(props.val===i?" on":"")} onClick={function(){props.onChange(i);}}>{o}</div>;})}</div>);}
   function NullSeg(props:{opts:string[];val:number|null;onChange:(i:number|null)=>void}){return (<div className="t-seg">{props.opts.map(function(o,i){return <div key={i} className={"t-seg-o"+(props.val===i?" on":"")} onClick={function(){props.onChange(props.val===i?null:i);}}>{o}</div>;})}</div>);}
   function Badge(props:{type:"req"|"rec"|"opt"}){const map:{[k:string]:string}={req:"必須",rec:"★ 推奨",opt:"任意"};return <span className={"t-badge "+props.type}>{map[props.type]}</span>;}
-  const LAYERS=[
+  const LAYERS:Layer[]=[
     {n:"LAYER 01",t:"事実を出す",h:"何があったか",qs:[
       {l:"Q01",t:"この曲にしたい出来事を、一言で言うと？",n:"例：キャバのNo.1だった子を自分から手放してしまった話",k:"q01",r:2,badge:"req",bn:"テーマの軸。なければ歌詞の方向が定まらない。"},
       {l:"Q02",t:"登場人物は誰？自分との関係性は？",n:"例：キャバクラNo.1の彼女、同棲してた彼氏がいた",k:"q02",r:3,badge:"rec",bn:"関係性が明確だと感情の対比が生まれ、歌詞の深みが増す。"},
@@ -707,7 +747,7 @@ export default function App(){
                           <div style={{marginBottom:"10px"}}>
                             <div style={{fontSize:"10px",color:"var(--txd)",marginBottom:"6px",letterSpacing:".05em"}}>選択中（上が主・下が従・↑↓で入れ替え）</div>
                             {selectedGenres.map(function(id,i){
-                              const g=GENRES.find(function(x){return x.id===id;});
+                              const g=GENRES.find(function(x){return x.id===id;}) as Genre|undefined;
                               return (
                                 <div key={id} className="t-part-item">
                                   <span className="t-part-name">{i===0?"★主 ":"　従 "}{g?g.name:id}</span>
@@ -1058,10 +1098,10 @@ export default function App(){
                 </div>
               </div>
 
-              {[
+              {([
                 {label:"BEFORE",title:"歌詞制作前に確認すること",items:CHECKS_BEFORE,state:cb,set:setCb},
                 {label:"AFTER",title:"歌詞制作後に確認すること",items:CHECKS_AFTER,state:ca,set:setCa}
-              ].map(function(section){return (
+              ] as {label:string;title:string;items:string[];state:boolean[];set:React.Dispatch<React.SetStateAction<boolean[]>>}[]).map(function(section){return (
                 <div className="t-s" key={section.label}>
                   <div className="t-sh"><span className="t-sn">{section.label}</span><span className="t-st">{section.title}</span><span className="t-sh2">{section.state.filter(Boolean).length}/{section.items.length}</span></div>
                   <div className="t-sb" style={{gap:"0",padding:"6px 16px"}}>
