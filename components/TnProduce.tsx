@@ -280,7 +280,7 @@ async function callAI(system:string,messages:{role:string;content:string}[],onCh
       return full;
     }catch(e:unknown){if(full.length>0)return full;throw e;}
   }
-  return full="";
+  return "";
 }
 function extractLyrics(t:string):string{const i=t.indexOf("[");return i>0?t.slice(i):t;}
 function extractHira(t:string):string{const i=t.indexOf("[");if(i<0)return t;const s=t.indexOf("---");return s>0?t.slice(i,s).trim():t.slice(i);}
