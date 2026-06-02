@@ -234,7 +234,7 @@ async function callAI(system:string,messages:{role:string;content:string}[],onCh
   if(res.body&&typeof res.body.getReader==="function"){
     const reader=res.body.getReader();const dec=new TextDecoder();let buf="";let full="";
     try{
-      while(true){const r=await reader.read();if(r.done)break;buf+=dec.decode(r.value,{stream:true});const lines=buf.split("\n");buf=lines.pop();
+      while(true){const r=await reader.read();if(r.done)break;buf+=dec.decode(r.value,{stream:true});const lines=buf.split("\n");buf=lines.pop()??"";
         for(let i=0;i<lines.length;i++){if(!lines[i].startsWith("data:"))continue;const d=lines[i].slice(5).trim();if(d==="[DONE]")return full;
           try{const j=JSON.parse(d);if(j.type==="content_block_delta"&&j.delta&&j.delta.text){full+=j.delta.text;onChunk(full);}}catch(e){}}}
       return full;
