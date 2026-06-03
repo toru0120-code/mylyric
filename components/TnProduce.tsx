@@ -1287,13 +1287,19 @@ export default function App(){
 
           {tab==="revise"&&(
             <div>
-              <div className="t-hero"><div className="t-eye">Revision Guide — MY LYRIC</div><h1 className="t-h1">修正の<em>伝え方</em></h1><p className="t-sub">INSERTを押すとGENERATEタブのチャットにテンプレートが入力される。</p></div>
-              {REVISE_PATTERNS.map(function(p){return (
-                <div className="t-pat" key={p.num}>
-                  <div className="t-pat-h"><span className="t-pat-n">PATTERN {p.num}</span><span className="t-pat-t">{p.title}</span></div>
-                  <div className="t-pat-b">{p.desc}<div className="t-pat-ex">{p.ex}</div><button className="t-pat-ins" onClick={function(){insertPattern(p.qi,p.num);}}>INSERT →</button>{insertOk===p.num&&<span className="t-ins-ok">✓ チャットに挿入しました</span>}</div>
+              <div className="t-hero"><div className="t-eye">Revision Guide — MY LYRIC</div><h1 className="t-h1">修正の<em>伝え方</em></h1><p className="t-sub">歌詞を生成後、INSERTを押してGENERATEタブのチャットにテンプレートを挿入する。</p></div>
+              {!lyric?(
+                <div className="t-info">先にGENERATEタブで歌詞を生成してください。</div>
+              ):(
+                <div>
+                  {REVISE_PATTERNS.map(function(p){return (
+                    <div className="t-pat" key={p.num}>
+                      <div className="t-pat-h"><span className="t-pat-n">PATTERN {p.num}</span><span className="t-pat-t">{p.title}</span></div>
+                      <div className="t-pat-b">{p.desc}<div className="t-pat-ex">{p.ex}</div><button className="t-pat-ins" onClick={function(){insertPattern(p.qi,p.num);}}>INSERT →</button>{insertOk===p.num&&<span className="t-ins-ok">✓ チャットに挿入しました</span>}</div>
+                    </div>
+                  );})}
                 </div>
-              );})}
+              )}
             </div>
           )}
 
