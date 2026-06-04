@@ -575,7 +575,7 @@ export default function App(){
   function getPromptOnly(){const sep=promptOut.indexOf("---");return sep>0?promptOut.slice(0,sep).trim():promptOut;}
   function getGenreSuggestion(){const sep=promptOut.indexOf("---ジャンル提案---");return sep>0?promptOut.slice(sep):"";} 
   async function doConfirm(revise?:string){
-    if(!canGenerate()){alert("Q01またはSTEP1の自前歌詞を入力してください。");return;}
+    if(!canGenerate()){alert("Q01またはSTEP1の既存の歌詞を入力してください。");return;}
     const mat=buildMaterial();if(!mat.trim()){alert("CREATEタブで素材を入力してください");return;}
     setLoading("confirm");setConfirmed("");
     const sys="あなたはプロの作詞家です。ユーザーが送った曲の素材を読んで、以下を日本語で返してください。\n1.「この曲の核心」を一文で言語化する\n2.「感情の流れ」を3段階で整理する（始まり→変化→結末）\n3. 確認したい点があれば1〜2個質問する\n形式：\n【核心】〇〇\n【感情の流れ】〇〇→〇〇→〇〇\n【確認】〇〇";
@@ -584,7 +584,7 @@ export default function App(){
     setLoading("");
   }
   async function doLyric(){
-    if(!canGenerate()){alert("Q01またはSTEP1の自前歌詞を入力してください。");return;}
+    if(!canGenerate()){alert("Q01またはSTEP1の既存の歌詞を入力してください。");return;}
     const missing=getMissingRequired();
     if(missing.length>0){
       setMissingModal({items:missing,onProceed:function(){setMissingModal(null);doLyricCore();}});
@@ -645,7 +645,7 @@ export default function App(){
   }
   function handleKey(e:React.KeyboardEvent<HTMLTextAreaElement>){if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendChat();}}
   async function doTitle(){
-    if(!getActiveLyric()){alert("先に歌詞を生成するか、自前歌詞を入力してください");return;}
+    if(!getActiveLyric()){alert("先に歌詞を生成するか、既存の歌詞を入力してください");return;}
     setLoading("title");setTitleParsed([]);setSelectedTitle("");setTitleMode("generated");
     const sys="あなたはプロの作詞家です。歌詞のタイトル候補を3つ出してください。\n1. 日本語タイトル\n2. 英語タイトル\n3. 日英ミックスタイトル（例：夜の蝶 / A Love Story）\nそれぞれ1行ずつ、番号付きで出力してください。タイトルの値のみで説明不要。";
     try{let r="";await callAI(sys,[{role:"user",content:"以下の歌詞のタイトル候補を出してください。\n\n"+getActiveLyric()}],function(res){r=res;});setTitleParsed(parseTitles(r));setTitleLocked(true);}
@@ -653,14 +653,14 @@ export default function App(){
     setLoading("");
   }
   async function doHira(){
-    if(!getActiveLyric()){alert("先に歌詞を生成するか、自前歌詞を入力してください");return;}
+    if(!getActiveLyric()){alert("先に歌詞を生成するか、既存の歌詞を入力してください");return;}
     setLoading("hira");setHira("");
     const sys="あなたはプロの作詞家です。歌詞の漢字をひらがなに変換してください。\n\n変換ルール：\n・音読み・訓読みが複数ある漢字は全てひらがなに変換する\n・一般的でない・難しい漢字は全てひらがなに変換する\n・小学校低学年レベル以上の漢字は積極的にひらがなに変換する\n・人名・地名もひらがなに変換する\n・英語・記号・セクションタグ（[Verse]など）はそのまま\n・音数（モーラ数）は変えない\n・変換後の歌詞全体のみを出力（説明不要）";
     try{await callAI(sys,[{role:"user",content:getActiveLyric()}],function(r){setHira(r);},2000);}catch(e){setHira("エラー: "+(e instanceof Error?e.message:String(e)));}
     setLoading("");
   }
   async function doPrompt(){
-    if(!canGenerate()){alert("Q01またはSTEP1の自前歌詞を入力してください。");return;}
+    if(!canGenerate()){alert("Q01またはSTEP1の既存の歌詞を入力してください。");return;}
     if(promptLocked){if(!window.confirm("プロンプトを再生成すると現在のプロンプト・診断履歴が全て消えます。本当に再生成しますか？"))return;}
     setLoading("prompt");setPromptOut("");setPromptDiag("");setPromptDiagCount(0);
     const g=getGenre();const kws=buildPromptKw();
@@ -1032,7 +1032,7 @@ export default function App(){
                 <div className="t-sh"><span className="t-sn">STEP 0</span><span className="t-st">テーマをAIと確認する</span><span className="t-sh2">精度を上げる最重要ステップ</span></div>
                 <div className="t-sb">
                   <div className="t-info">AIが素材を整理して「核心」と「感情の流れ」を確認してくれる。ズレがあれば下の修正指示欄に入力して再確認する。</div>
-                  {!canGenerate()&&<div style={{fontSize:"11px",color:"var(--rd)",padding:"8px 12px",background:"rgba(224,85,85,0.08)",borderRadius:"8px",border:"1px solid rgba(224,85,85,0.2)"}}>Q01を入力するか、STEP1の自前歌詞欄に歌詞を入力してください。</div>}
+                  {!canGenerate()&&<div style={{fontSize:"11px",color:"var(--rd)",padding:"8px 12px",background:"rgba(224,85,85,0.08)",borderRadius:"8px",border:"1px solid rgba(224,85,85,0.2)"}}>Q01を入力するか、STEP1の既存の歌詞欄に歌詞を入力してください。</div>}
                   {!confirmedLocked?(
                     <button className="t-btn t-btn-g" onClick={function(){doConfirm();}} disabled={!!loading||!canGenerate()}>{loading==="confirm"?"確認中...":"テーマを確認する"}</button>
                   ):(
@@ -1049,12 +1049,12 @@ export default function App(){
               <div className="t-s">
                 <div className="t-sh"><span className="t-sn">STEP 1</span><span className="t-st">歌詞を生成する</span><span className="t-sh2">全設定が反映される</span></div>
                 <div className="t-sb">
-                  {!canGenerate()&&<div style={{fontSize:"11px",color:"var(--rd)",padding:"8px 12px",background:"rgba(224,85,85,0.08)",borderRadius:"8px",border:"1px solid rgba(224,85,85,0.2)",marginBottom:"8px"}}>Q01を入力するか、下の自前歌詞欄に歌詞を入力してください。</div>}
+                  {!canGenerate()&&<div style={{fontSize:"11px",color:"var(--rd)",padding:"8px 12px",background:"rgba(224,85,85,0.08)",borderRadius:"8px",border:"1px solid rgba(224,85,85,0.2)",marginBottom:"8px"}}>Q01を入力するか、下の既存の歌詞欄に歌詞を入力してください。</div>}
                   <div style={{marginBottom:"12px",padding:"14px 16px",background:"var(--sf2)",border:"1px solid var(--bd)",borderRadius:"12px"}}>
-                    <div style={{fontSize:"10px",color:"var(--txd)",marginBottom:"6px",letterSpacing:".05em"}}>自前歌詞を使う（任意）</div>
+                    <div style={{fontSize:"10px",color:"var(--txd)",marginBottom:"6px",letterSpacing:".05em"}}>既存の歌詞を使う（任意）</div>
                     <div style={{fontSize:"10px",color:"var(--txd)",marginBottom:"8px"}}>自分で書いた歌詞がある場合はここに入力。Q01が空でも使用可能。STEP2以降が使えます。</div>
                     <textarea rows={5} placeholder={"[Verse 1]\nここに歌詞を貼り付け..."} value={ownLyric} onChange={function(e){setOwnLyric(e.target.value);}} style={{marginBottom:"4px"}}/>
-                    {ownLyric.trim()&&<div style={{fontSize:"10px",color:"var(--gr)"}}>✅ 自前歌詞が入力されています。STEP2以降が使えます。</div>}
+                    {ownLyric.trim()&&<div style={{fontSize:"10px",color:"var(--gr)"}}>✅ 既存の歌詞が入力されています。STEP2以降が使えます。</div>}
                   </div>
                   <div style={{display:"flex",gap:"8px",alignItems:"center"}}>
                     <button className="t-btn t-btn-g" style={{flex:1}} onClick={doLyric} disabled={!!loading||!canGenerate()}>{loading==="lyric"?"生成中...":lyricLocked?"再生成する（履歴消去）":"GENERATE LYRIC"}</button>
@@ -1191,7 +1191,7 @@ export default function App(){
                       <div className="t-info" style={{fontSize:"10px"}}>Udoは文字数制限なし。詳細で多層的なプロンプトが高品質な出力につながります。</div>
                     )}
                   </div>
-                  {!canGenerate()&&<div style={{fontSize:"11px",color:"var(--rd)",padding:"8px 12px",background:"rgba(224,85,85,0.08)",borderRadius:"8px",border:"1px solid rgba(224,85,85,0.2)",marginBottom:"8px"}}>Q01を入力するか、STEP1の自前歌詞欄に歌詞を入力してください。</div>}
+                  {!canGenerate()&&<div style={{fontSize:"11px",color:"var(--rd)",padding:"8px 12px",background:"rgba(224,85,85,0.08)",borderRadius:"8px",border:"1px solid rgba(224,85,85,0.2)",marginBottom:"8px"}}>Q01を入力するか、STEP1の既存の歌詞欄に歌詞を入力してください。</div>}
                   <div className="t-br" style={{marginBottom:"8px"}}>
                     <button className="t-btn t-btn-g" onClick={doPrompt} disabled={!!loading||!canGenerate()}>{loading==="prompt"?"生成中...":promptLocked?"再生成する（履歴消去）":"GENERATE PROMPT"}</button>
                     {promptOut&&!promptOut.startsWith("エラー")&&(
