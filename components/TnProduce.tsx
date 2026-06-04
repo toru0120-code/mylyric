@@ -18,12 +18,6 @@ type Layer = {
 };
 
 
-declare global {
-  interface Window {
-    confirm(msg: string): boolean;
-    prompt(msg: string): string|null;
-  }
-}
 
 const S = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
@@ -280,7 +274,7 @@ const EXTRA_KW={
   "ATMOSPHERE":["late night drive","neon reflections","summer night highway","winter night","phone screen glow","late night apartment","cabaret night","still water atmosphere","quiet night"],
 };
 const CHECKS_BEFORE=["テーマの核心を一言で言えるか","登場人物の関係性は明確か","感情の流れに起承転結があるか","最後の終わり方は決まってるか","ターゲットリスナーは誰か","比喩の軸は何か","言語の割合は決まってるか"];
-const CHECKS_AFTER=["同じパートの行数は揃ってるか","ひらがなの音数は揃ってるか","伏線と回収は成立してるか","比喩が多すぎないか","説明しすぎてないか","選択したジャンルらしいか","音楽生成AIが読み間違いしそうな漢字はないか","プロンプトが1000文字以内に収まってるか"];
+const CHECKS_AFTER=["同じパートの行数は揃ってるか","ひらがなの音数は揃ってるか","伏線と回収は成立してるか","比喩が多すぎないか","説明しすぎてないか","選択したジャンルらしいか","音楽生成AIが読み間違いしそうな漢字はないか","プロンプトがSTEP5で選択した文字数上限以内に収まってるか（Suno使用時）"];
 type RevisePattern = {
   num: string;
   title: string;
@@ -485,13 +479,11 @@ export default function App(){
     setOwnLyric("");
     setLyricDiagCount(0);setPromptDiagCount(0);setConfirmRevise("");setWorldRevise("");
     setMusicAI("suno");setStyleLimit(300);
-    setLyricDiagCount(0);setPromptDiagCount(0);setConfirmRevise("");setWorldRevise("");
-    setMusicAI("suno");setStyleLimit(300);
   }
   // Q01が空かチェック
   function isQ01Empty(){return !F.q01.trim();}
   function canGenerate(){return !isQ01Empty()||ownLyric.trim().length>0;}
-  function getActiveLyric(){return ownLyric.trim()||lyric;}
+  function getActiveLyric(){return lyric.trim()||ownLyric.trim();}
   // その他必須が空かチェック（Q12・ENDING・ボーカル性別）
   function getMissingRequired(){
     const missing=[];
@@ -570,7 +562,7 @@ export default function App(){
     const styleLimit=getStyleLimit();
     const limit=getStyleLimit();
     const limitNote=musicAI==="udio"
-      ?"・Udoは文字数制限なし・詳細で多層的なプロンプトが高品質な出力につながる・ジャンル・ムード・楽器・テンポを詳しく記述する"
+      ?"・Udioは文字数制限なし・詳細で多層的なプロンプトが高品質な出力につながる・ジャンル・ムード・楽器・テンポを詳しく記述する"
       :`・出力は絶対に${limit}文字以内にすること・${limit}文字を超えた場合は重要度の低いキーワードを削除して必ず${limit}文字以内に収めること・最重要キーワード（ジャンル・ボーカル）を先頭に配置する`;
     let genreLine="";
     if(genreMode==="auto")genreLine="ジャンル：素材に最適なジャンルをAIが判断して選ぶ";
@@ -626,7 +618,11 @@ export default function App(){
     catch(e){setLyricDiagnosis("エラー: "+(e instanceof Error?e.message:String(e)));}
     setLoading("");
   }
-  function hasFatalLyricIssue(){return lyricDiagnosis.includes("🚨")&&!lyricDiagnosis.includes("🚨 致命的な問題\n・なし")&&!lyricDiagnosis.includes("🚨 致命的な問題（");}
+  function hasFatalIssue(text:string){
+    const section=text.match(/🚨[\s\S]*?(?=⚠️|✅|$)/)?.[0]??"";
+    return section.length>0&&!/なし|無し|ありません|特になし/.test(section);
+  }
+  function hasFatalLyricIssue(){return hasFatalIssue(lyricDiagnosis);}
   async function doLyricAutoFix(){
     if(!getActiveLyric())return;setLoading("lyricFix");
     const sys=buildChatSys()+"\n致命的な問題のみを修正する。軽微な問題は修正しない。修正後は歌詞全体のみを出力する。";
@@ -694,9 +690,13 @@ export default function App(){
           const rest=sep>0?r.slice(sep):"";
           if(promptPart.length>limit){
             const parts=promptPart.split(",").map(function(p){return p.trim();}).filter(Boolean);
+            const priorityKws=["vocalist","bpm","ballad","pop","rock","rnb","jazz","electronic","hip hop","acoustic","male","female","japanese","english","k-pop","visual kei","anime","enka"];
+            const important=parts.filter(function(p){return priorityKws.some(function(kw){return p.toLowerCase().includes(kw);});});
+            const others=parts.filter(function(p){return !priorityKws.some(function(kw){return p.toLowerCase().includes(kw);});});
+            const ordered=important.concat(others);
             let trimmed="";
-            for(let i=0;i<parts.length;i++){
-              const candidate=trimmed?trimmed+", "+parts[i]:parts[i];
+            for(let i=0;i<ordered.length;i++){
+              const candidate=trimmed?trimmed+", "+ordered[i]:ordered[i];
               if(candidate.length<=limit)trimmed=candidate;
               else break;
             }
@@ -721,7 +721,7 @@ export default function App(){
     catch(e){setPromptDiag("エラー: "+(e instanceof Error?e.message:String(e)));}
     setLoading("");
   }
-  function hasFatalPromptIssue(){return promptDiag.includes("🚨")&&!promptDiag.includes("🚨 致命的な問題\n・なし")&&!promptDiag.includes("🚨 致命的な問題（");}
+  function hasFatalPromptIssue(){return hasFatalIssue(promptDiag);}
   async function doPromptFix(instruction:string){
     const prompt=getPromptOnly();if(!prompt)return;
     setLoading("promptFix");setPromptOut("");
@@ -785,7 +785,7 @@ export default function App(){
   function Badge(props:{type:"req"|"rec"|"opt"|"req-special"}){const map:{[k:string]:string}={"req-special":"🔑 必須",req:"必須",rec:"★ 推奨",opt:"任意"};return <span className={"t-badge "+props.type}>{map[props.type]}</span>;}
   const LAYERS:Layer[]=[
     {n:"LAYER 01",t:"事実を出す",h:"何があったか",qs:[
-      {l:"Q01",t:"この曲にしたい出来事を、一言で言うと？",n:"例：ずっと好きだった人に、結局気持ちを伝えられなかった話",k:"q01",r:2,badge:"req-special" as "req",bn:"テーマの軸。なければ歌詞の方向が定まらない。"},
+      {l:"Q01",t:"この曲にしたい出来事を、一言で言うと？",n:"例：ずっと好きだった人に、結局気持ちを伝えられなかった話",k:"q01",r:2,badge:"req-special",bn:"テーマの軸。なければ歌詞の方向が定まらない。"},
       {l:"Q02",t:"登場人物は誰？自分との関係性は？",n:"例：幼なじみ、ずっと片思いしていた同級生",k:"q02",r:3,badge:"rec",bn:"関係性が明確だと感情の対比が生まれ、歌詞の深みが増す。"},
       {l:"Q03",t:"何があったか、時系列で箇条書きにすると？",n:"順番通りじゃなくてもいい",k:"q03",r:6,badge:"rec",bn:"ストーリーの骨格。Aメロ（Verse 1・2）の流れに直接反映される。"},
     ]},
@@ -892,7 +892,7 @@ export default function App(){
               <div className="t-s">
                 <div className="t-sh"><span className="t-sn">PROJECT</span><span className="t-st">保存・共有</span></div>
                 <div className="t-sb">
-                  <div className="t-info"><strong>プロジェクト名</strong>を決めてSAVEすると保存される。相手が同じ名前でLOADすれば入力内容を丸ごと共有できる。</div>
+                  <div className="t-info"><strong>プロジェクト名</strong>を決めてSAVEするとこの端末のブラウザ内に保存される。別端末・別ユーザーとの共有には対応していません。</div>
                   <div className="t-sr"><input type="text" placeholder="プロジェクト名（例：夜の蝶）" value={pkey} onChange={function(e){setPkey(e.target.value);}}/><button className="t-btn t-btn-g" onClick={saveProject}>SAVE</button><button className="t-btn t-btn-gh" onClick={loadProject}>LOAD</button></div>
                   {pst.replace(/^(ok:|err:)/,"")&&<div className={"t-stb "+psClass}>{pst.replace(/^(ok:|err:)/,"")}</div>}
                 </div>
@@ -1097,7 +1097,7 @@ export default function App(){
                     {ownLyric.trim()&&<div style={{fontSize:"10px",color:"var(--gr)"}}>✅ 既存の歌詞が入力されています。STEP2以降が使えます。</div>}
                   </div>
                   <div style={{display:"flex",gap:"8px",alignItems:"center"}}>
-                    <button className="t-btn t-btn-g" style={{flex:1}} onClick={doLyric} disabled={!!loading||!canGenerate()||ownLyric.trim().length>0}>{loading==="lyric"?"生成中...":lyricLocked?"再生成する（履歴消去）":"GENERATE LYRIC"}</button>
+                    <button className="t-btn t-btn-g" style={{flex:1}} onClick={doLyric} disabled={!!loading||!canGenerate()||ownLyric.trim().length>0}>{loading==="lyric"?"生成中...":ownLyric.trim()?"既存歌詞使用中":lyricLocked?"再生成する（履歴消去）":"GENERATE LYRIC"}</button>
                     {ownLyric.trim()&&<div style={{fontSize:"10px",color:"var(--txd)",marginTop:"4px"}}>既存の歌詞が入力されています。歌詞を生成する場合は既存の歌詞欄を空にしてください。</div>}
                   </div>
                   {(lyric||loading==="lyric")&&(
@@ -1229,7 +1229,7 @@ export default function App(){
                       </div>
                     )}
                     {musicAI==="udio"&&(
-                      <div className="t-info" style={{fontSize:"10px"}}>Udoは文字数制限なし。詳細で多層的なプロンプトが高品質な出力につながります。</div>
+                      <div className="t-info" style={{fontSize:"10px"}}>Udioは文字数制限なし。詳細で多層的なプロンプトが高品質な出力につながります。</div>
                     )}
                   </div>
                   {!canGenerate()&&<div style={{fontSize:"11px",color:"var(--rd)",padding:"8px 12px",background:"rgba(224,85,85,0.08)",borderRadius:"8px",border:"1px solid rgba(224,85,85,0.2)",marginBottom:"8px"}}>Q01を入力するか、STEP1の既存の歌詞欄に歌詞を入力してください。</div>}
@@ -1465,7 +1465,7 @@ export default function App(){
                     {h:"ジャンルの決め方",t:"3つのモードがある。\n①AIにおまかせ：素材から最適なジャンルをAIが判断（ジャンルがわからない人はこれ）\n②選んで決める：複数選択可。選んだ順に主従が決まり、掛け合わせて生成する（例：シティポップ主×R&B従）\n③カスタム入力：ジャンル名とキーワードを自由に指定\n選ばなくてもAIにおまかせで生成できる。"},
                     {h:"詳細設定について",t:"CREATEのSETTINGS内「詳細設定を開く」の中にある項目は全て任意。選ばなくてもAIが補完するが、選ぶほど意図に近い出力になる。選んだ内容は歌詞・音楽生成AIプロンプト・最終チェックの全てに反映される。"},
                     {h:"コピーについて",t:"歌詞・音楽生成AIプロンプト・ひらがな変換済み歌詞はそれぞれ専用のコピーボタンがある。コピーしたテキストには余計な説明文は含まれず、そのまま各AIに貼り付けて使える。"},
-                    {h:"プロジェクトの共有について",t:"プロジェクト名を相手に教えてLOADしてもらうと入力内容を丸ごと共有できる。共同制作や、作業の続きを別デバイスで行う際に使う。共有には同じプロジェクト名を使う。"},
+                    {h:"プロジェクトの保存について",t:"プロジェクト名を決めてSAVEするとこの端末のブラウザ内に保存される。別端末・別ユーザーとの共有には対応していません。別端末で続きを行う場合はSupabase連携が必要（将来実装予定）。\n同じ端末・同じブラウザ内での作業の引き継ぎには使える。共有には同じプロジェクト名を使う。"},
                   ].map(function(item,i){return (
                     <div key={i} className="t-guide-item"><div className="t-guide-h">{item.h}</div><div className="t-guide-txt">{item.t}</div></div>
                   );})}
