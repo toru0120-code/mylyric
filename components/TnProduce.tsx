@@ -367,6 +367,7 @@ export default function App(){
   const[promptDiagCount,setPromptDiagCount]=useState(0);
   // ボタンロック
   const[confirmedLocked,setConfirmedLocked]=useState(false);
+  const[titleLocked,setTitleLocked]=useState(false);
   const[lyricLocked,setLyricLocked]=useState(false);
   const[promptLocked,setPromptLocked]=useState(false);
   const[worldLocked,setWorldLocked]=useState(false);
@@ -466,7 +467,7 @@ export default function App(){
     setVocalGender(0);setLangRatio(6);setShowAdv(false);setVocalTexture(null);setVocalRange(null);setVocalOrigin(null);
     setChordProg(null);setBpm(null);setTargetAges([]);setTargetGender(null);setMetaphor(0);setDual(0);
     setStructMode("basic");setParts(DEFAULT_PARTS.map(function(p){return Object.assign({},p) as Part;}));
-    setConfirmedLocked(false);setLyricLocked(false);setPromptLocked(false);setWorldLocked(false);
+    setConfirmedLocked(false);setTitleLocked(false);setLyricLocked(false);setPromptLocked(false);setWorldLocked(false);
     setLyricDiagCount(0);setPromptDiagCount(0);setConfirmRevise("");setWorldRevise("");
     setMusicAI("suno");setStyleLimit(300);
   }
@@ -611,7 +612,7 @@ export default function App(){
     if(!lyric){alert("先に歌詞を生成してください");return;}
     setLoading("title");setTitleParsed([]);setSelectedTitle("");setTitleMode("generated");
     const sys="あなたはプロの作詞家です。歌詞のタイトル候補を3つ出してください。\n1. 日本語タイトル\n2. 英語タイトル\n3. 日英ミックスタイトル（例：夜の蝶 / A Love Story）\nそれぞれ1行ずつ、番号付きで出力してください。タイトルの値のみで説明不要。";
-    try{let r="";await callAI(sys,[{role:"user",content:"以下の歌詞のタイトル候補を出してください。\n\n"+lyric}],function(res){r=res;});setTitleParsed(parseTitles(r));}
+    try{let r="";await callAI(sys,[{role:"user",content:"以下の歌詞のタイトル候補を出してください。\n\n"+lyric}],function(res){r=res;});setTitleParsed(parseTitles(r));setTitleLocked(true);}
     catch(e){setTitleParsed([{label:"エラー",value:e instanceof Error?e.message:String(e)}]);}
     setLoading("");
   }
@@ -623,7 +624,7 @@ export default function App(){
     setLoading("");
   }
   async function doPrompt(){
-    if(promptLocked){if(!window.confirm("プロンプトを再生成します。現在の診断履歴が消えます。続けますか？"))return;}
+    if(promptLocked){if(!window.confirm("プロンプトを再生成すると現在のプロンプト・診断履歴が全て消えます。本当に再生成しますか？"))return;}
     setLoading("prompt");setPromptOut("");setPromptDiag("");setPromptDiagCount(0);
     const g=getGenre();const kws=buildPromptKw();
     const userMsg="以下の情報から"+g.name+"の最高の音楽生成AIプロンプトを英語で生成してください。\n\n【素材の要約】\n"+buildMaterial()+"【制作設定】\n"+buildSettings()+"\n【使用するキーワード（必ず含める）】\n"+kws+"\n\nまた、この素材に合う他のジャンルも2〜3個提案があれば、プロンプトの後に「---ジャンル提案---」として1行ずつ記載してください。";
@@ -1036,14 +1037,14 @@ export default function App(){
               </div>
 
               <div className="t-s">
-                <div className="t-sh"><span className="t-sn">STEP 3</span><span className="t-st">タイトルを決める</span><span className="t-sh2">選択・再提案・自作</span></div>
+                <div className="t-sh"><span className="t-sn">STEP 3</span><span className="t-st">タイトルを決める</span><span className="t-sh2">選択・再生成・自作</span></div>
                 <div className="t-sb">
                   {!lyric?(
                     <div style={{fontSize:"11px",color:"var(--txd)",fontStyle:"italic"}}>STEP 1で歌詞を生成するとタイトル生成が使えます。</div>
                   ):(
                     <div>
                       <div className="t-br" style={{marginBottom:"12px"}}>
-                        <button className="t-btn t-btn-g" onClick={doTitle} disabled={!!loading}>{loading==="title"?"生成中...":"GENERATE TITLE"}</button>
+                        <button className="t-btn t-btn-g" onClick={doTitle} disabled={!!loading}>{loading==="title"?"生成中...":titleLocked?"再生成する":"GENERATE TITLE"}</button>
                         
                       </div>
                       {titleMode==="generated"&&titleParsed.length>0&&(
@@ -1112,7 +1113,7 @@ export default function App(){
                     )}
                   </div>
                   <div className="t-br" style={{marginBottom:"8px"}}>
-                    <button className="t-btn t-btn-g" onClick={doPrompt} disabled={!!loading}>{loading==="prompt"?"生成中...":promptLocked?"再生成する":"GENERATE PROMPT"}</button>
+                    <button className="t-btn t-btn-g" onClick={doPrompt} disabled={!!loading}>{loading==="prompt"?"生成中...":promptLocked?"再生成する（履歴消去）":"GENERATE PROMPT"}</button>
                     {promptOut&&!promptOut.startsWith("エラー")&&(
                       <span style={{fontSize:"10px",fontFamily:"'Space Grotesk',sans-serif",color:getPromptOnly().length>getStyleLimit()?"var(--rd)":"var(--gr)"}}>
                         {getPromptOnly().length}/{getStyleLimit()}文字
