@@ -1110,8 +1110,8 @@ export default function App(){
               <div className="t-s">
                 <div className="t-sh"><span className="t-sn">STEP 2</span><span className="t-st">歌詞の最終チェック</span><span className="t-sh2">診断 {lyricDiagCount}/2回目{lyricDiagCount>0?" 完了":""}</span></div>
                 <div className="t-sb">
-                  {!lyric?(
-                    <div style={{fontSize:"11px",color:"var(--txd)",fontStyle:"italic"}}>STEP 1で歌詞を生成すると使えます。</div>
+                  {!getActiveLyric()?(
+                    <div style={{fontSize:"11px",color:"var(--txd)",fontStyle:"italic"}}>STEP 1で歌詞を生成するか、既存の歌詞を入力すると使えます。</div>
                   ):(
                     <div>
                       <div className="t-info" style={{marginBottom:"10px"}}>
@@ -1157,8 +1157,8 @@ export default function App(){
               <div className="t-s">
                 <div className="t-sh"><span className="t-sn">STEP 3</span><span className="t-st">タイトルを決める</span><span className="t-sh2">選択・再生成・自作</span></div>
                 <div className="t-sb">
-                  {!lyric?(
-                    <div style={{fontSize:"11px",color:"var(--txd)",fontStyle:"italic"}}>STEP 1で歌詞を生成するとタイトル生成が使えます。</div>
+                  {!getActiveLyric()?(
+                    <div style={{fontSize:"11px",color:"var(--txd)",fontStyle:"italic"}}>STEP 1で歌詞を生成するか、既存の歌詞を入力するとタイトル生成が使えます。</div>
                   ):(
                     <div>
                       <div className="t-br" style={{marginBottom:"12px"}}>
@@ -1185,8 +1185,8 @@ export default function App(){
               <div className="t-s">
                 <div className="t-sh"><span className="t-sn">STEP 4</span><span className="t-st">ひらがな変換</span><span className="t-sh2">読み間違い防止<br/>音数は変えない</span></div>
                 <div className="t-sb">
-                  {!lyric?(
-                    <div style={{fontSize:"11px",color:"var(--txd)",fontStyle:"italic"}}>STEP 1で歌詞を生成するとひらがな変換が使えます。</div>
+                  {!getActiveLyric()?(
+                    <div style={{fontSize:"11px",color:"var(--txd)",fontStyle:"italic"}}>STEP 1で歌詞を生成するか、既存の歌詞を入力するとひらがな変換が使えます。</div>
                   ):(
                     <div>
                       <div className="t-info" style={{marginBottom:"8px"}}>音楽生成AIが読み間違いやすい漢字をひらがなに変換する。海外製のAIは特に読み間違いが多いのでどのツールでも有効。<strong>音数は変わらない</strong>ように処理される。</div>
@@ -1333,8 +1333,8 @@ export default function App(){
                     ・<strong>MV・映像</strong> →「Gemini Veo用の映像プロンプトをシーン別に作って」<br/>
                     ・<strong>SNS投稿画像</strong> →「Canva用のデザイン指示を作って」
                   </div>
-                  {!lyric?(
-                    <div style={{fontSize:"11px",color:"var(--txd)",fontStyle:"italic"}}>STEP 1で歌詞を生成すると世界観カードが作れます。</div>
+                  {!getActiveLyric()?(
+                    <div style={{fontSize:"11px",color:"var(--txd)",fontStyle:"italic"}}>STEP 1で歌詞を生成するか、既存の歌詞を入力すると世界観カードが作れます。</div>
                   ):(
                     <div>
                       {!worldLocked?(
