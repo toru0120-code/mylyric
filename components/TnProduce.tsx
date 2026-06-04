@@ -21,7 +21,7 @@ type Layer = {
 
 const S = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
-  .t*{box-sizing:border-box;margin:0;padding:0;}
+  .t,.t *{box-sizing:border-box;margin:0;padding:0;}
   .t{--g:#c850c0;--g2:#4158d0;--gd:rgba(200,80,192,0.12);--gg:rgba(200,80,192,0.06);--bg:#060610;--sf:#0c0c1e;--sf2:#10102a;--bd:#1e1e38;--tx:#f0eeff;--txm:#9896b8;--txd:#4a4870;--gr:#7ec87e;--rd:#e05555;--grad:linear-gradient(135deg,#c850c0,#4158d0);font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;}
   .t-bg{position:fixed;inset:0;pointer-events:none;z-index:0;background:radial-gradient(ellipse 80% 60% at 0% 0%,rgba(200,80,192,.08) 0%,transparent 50%),radial-gradient(ellipse 60% 40% at 100% 100%,rgba(65,88,208,.08) 0%,transparent 50%);}
   .t-w{position:relative;z-index:1;max-width:720px;margin:0 auto;padding:0 18px 100px;}
@@ -620,7 +620,10 @@ export default function App(){
   }
   function hasFatalIssue(text:string){
     const section=text.match(/🚨[\s\S]*?(?=⚠️|✅|$)/)?.[0]??"";
-    return section.length>0&&!/なし|無し|ありません|特になし/.test(section);
+    if(!section)return false;
+    const lines=section.split("\n").map(function(l){return l.trim();}).filter(function(l){return l.startsWith("・");});
+    if(lines.length===0)return false;
+    return !lines.every(function(l){return /^・\s*(なし|無し|ありません|特になし)\s*$/.test(l);});
   }
   function hasFatalLyricIssue(){return hasFatalIssue(lyricDiagnosis);}
   async function doLyricAutoFix(){
@@ -637,8 +640,9 @@ export default function App(){
     setLoading("");
   }
   async function sendChat(){
-    if(!chatInput.trim()||loading)return;if(!lyric){alert("先に歌詞を生成してください");return;}
+    if(!chatInput.trim()||loading)return;if(!getActiveLyric()){alert("先に歌詞を生成するか、既存の歌詞を入力してください");return;}
     const userMsg=chatInput.trim();setChatInput("");
+    const baseHistory=lyricHistory.length>0?lyricHistory:[{role:"assistant",content:getActiveLyric()}];
     const nd=chatDisplay.concat([{role:"user",content:userMsg}]);
     setChatDisplay(nd.concat([{role:"assistant",content:"生成中..."}]));
     const nh=lyricHistory.concat([{role:"user",content:userMsg}]);
@@ -1243,7 +1247,7 @@ export default function App(){
                   </div>
                   {(promptOut||loading==="prompt")&&(
                     <div>
-                      <textarea readOnly value={getPromptOnly()||(loading==="prompt"?"生成中...":"")} style={{minHeight:"140px",maxHeight:"220px",background:"rgba(200,80,192,0.04)",borderColor:getPromptOnly().length>1000?"rgba(224,85,85,0.4)":"rgba(200,80,192,0.2)",color:"var(--tx)",cursor:"text",fontFamily:"'Space Grotesk',sans-serif",fontSize:"11px",marginBottom:"8px"}}/>
+                      <textarea readOnly value={getPromptOnly()||(loading==="prompt"?"生成中...":"")} style={{minHeight:"140px",maxHeight:"220px",background:"rgba(200,80,192,0.04)",borderColor:getPromptOnly().length>getStyleLimit()?"rgba(224,85,85,0.4)":"rgba(200,80,192,0.2)",color:"var(--tx)",cursor:"text",fontFamily:"'Space Grotesk',sans-serif",fontSize:"11px",marginBottom:"8px"}}/>
                       {promptOut&&!promptOut.startsWith("エラー")&&<button className={"t-btn "+(copyOk==="prompt"?"t-btn-ok":"t-btn-g")} style={{width:"100%",padding:"12px"}} onClick={function(){doCopy(getPromptOnly(),"prompt");}}>{copyLabel("prompt","音楽生成AIプロンプトをコピーする")}</button>}
                       {getGenreSuggestion()&&<div className="t-out" style={{marginTop:"8px",fontSize:"11px",borderColor:"rgba(200,80,192,.15)"}}>{getGenreSuggestion()}</div>}
                     </div>
