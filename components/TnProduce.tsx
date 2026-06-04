@@ -375,6 +375,7 @@ export default function App(){
   const[insertOk,setInsertOk]=useState<string|null>(null);
   const[ownLyric,setOwnLyric]=useState("");
   const[missingModal,setMissingModal]=useState<{items:string[];onProceed:()=>void}|null>(null);
+  const[shortQ01Modal,setShortQ01Modal]=useState<{onProceed:()=>void}|null>(null);
   // 診断カウンター
   const[lyricDiagCount,setLyricDiagCount]=useState(0);
   const[promptDiagCount,setPromptDiagCount]=useState(0);
@@ -585,12 +586,18 @@ export default function App(){
   }
   async function doLyric(){
     if(!canGenerate()){alert("Q01またはSTEP1の既存の歌詞を入力してください。");return;}
+    if(F.q01.trim().length>0&&F.q01.trim().length<10){
+      setShortQ01Modal({onProceed:function(){setShortQ01Modal(null);doLyricAfterShortCheck();}});
+      return;
+    }
+    doLyricAfterShortCheck();
+  }
+  function doLyricAfterShortCheck(){
     const missing=getMissingRequired();
     if(missing.length>0){
       setMissingModal({items:missing,onProceed:function(){setMissingModal(null);doLyricCore();}});
       return;
     }
-    const mat=buildMaterial();if(!mat.trim()){alert("CREATEタブで素材を入力してください");return;}
     if(lyricLocked){if(!window.confirm("歌詞を再生成すると現在の歌詞・診断履歴が全て消えます。本当に再生成しますか？"))return;}
     doLyricCore();
   }
@@ -791,6 +798,27 @@ export default function App(){
         <div className="t-bg"></div>
         <div className="t-w">
 
+          {shortQ01Modal&&(
+            <div className="t-ov">
+              <div className="t-mo">
+                <div className="t-mo-top">
+                  <div className="t-mo-br">MY LYRIC</div>
+                  <div className="t-mo-t">入力内容が<em>短すぎます</em></div>
+                  <div className="t-mo-s">Q01は10文字以上入力することをおすすめします。<br/>テーマだけでなく「どう感じたか」も一緒に入力すると歌詞の精度が大きく上がります。</div>
+                </div>
+                <div className="t-mo-b">
+                  <div className="t-mo-step">
+                    <div className="t-mo-n" style={{color:"var(--g)"}}>例</div>
+                    <div className="t-mo-tx">「ずっと好きだった人に振られて悔しい」<br/>「仲良かった友達と離れてしまって寂しい」</div>
+                  </div>
+                </div>
+                <div className="t-mo-f" style={{display:"flex",flexDirection:"column",gap:"8px"}}>
+                  <button className="t-btn t-btn-g" style={{width:"100%",padding:"13px"}} onClick={function(){setShortQ01Modal(null);setTab("create");}}>もう少し入力する</button>
+                  <button className="t-btn t-btn-gh" style={{width:"100%",padding:"13px"}} onClick={shortQ01Modal.onProceed}>このまま生成する</button>
+                </div>
+              </div>
+            </div>
+          )}
           {missingModal&&(
             <div className="t-ov">
               <div className="t-mo">
