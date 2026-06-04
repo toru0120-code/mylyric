@@ -262,16 +262,16 @@ type Part = {
 };
 
 const DEFAULT_PARTS:Part[]=[
-  {id:"intro",name:"Intro Chorus",tag:"[Intro Chorus]",enabled:false},
-  {id:"v1",name:"Verse 1",tag:"[Verse 1]",enabled:true},
-  {id:"pre1",name:"Pre-Chorus 1",tag:"[Pre-Chorus]",enabled:true},
-  {id:"ch1",name:"Chorus 1",tag:"[Chorus]",enabled:true},
-  {id:"v2",name:"Verse 2",tag:"[Verse 2]",enabled:true},
-  {id:"pre2",name:"Pre-Chorus 2",tag:"[Pre-Chorus]",enabled:true},
-  {id:"ch2",name:"Chorus 2",tag:"[Chorus]",enabled:true},
-  {id:"bridge",name:"Bridge",tag:"[Bridge]",enabled:true},
-  {id:"last",name:"Last Chorus",tag:"[Last Chorus]",enabled:true},
-  {id:"outro",name:"Outro",tag:"[Outro]",enabled:true},
+  {id:"intro",name:"Intro Chorus（イントロサビ）",tag:"[Intro Chorus]",enabled:false},
+  {id:"v1",name:"Verse 1（Aメロ）",tag:"[Verse 1]",enabled:true},
+  {id:"pre1",name:"Pre-Chorus 1（Bメロ）",tag:"[Pre-Chorus]",enabled:true},
+  {id:"ch1",name:"Chorus 1（サビ）",tag:"[Chorus]",enabled:true},
+  {id:"v2",name:"Verse 2（Aメロ2）",tag:"[Verse 2]",enabled:true},
+  {id:"pre2",name:"Pre-Chorus 2（Bメロ2）",tag:"[Pre-Chorus]",enabled:true},
+  {id:"ch2",name:"Chorus 2（サビ2）",tag:"[Chorus]",enabled:true},
+  {id:"bridge",name:"Bridge（Cメロ）",tag:"[Bridge]",enabled:true},
+  {id:"last",name:"Last Chorus（大サビ）",tag:"[Last Chorus]",enabled:true},
+  {id:"outro",name:"Outro（アウトロ）",tag:"[Outro]",enabled:true},
 ];
 const EXTRA_KW={
   "EMOTION":["melancholic","bittersweet","emotionally raw","quiet regret","slow burn intensity","simmering emotion","passionate restraint","delicate","tender","emotionally vulnerable"],
@@ -740,19 +740,19 @@ export default function App(){
     {n:"LAYER 01",t:"事実を出す",h:"何があったか",qs:[
       {l:"Q01",t:"この曲にしたい出来事を、一言で言うと？",n:"例：ずっと好きだった人に、結局気持ちを伝えられなかった話",k:"q01",r:2,badge:"req",bn:"テーマの軸。なければ歌詞の方向が定まらない。"},
       {l:"Q02",t:"登場人物は誰？自分との関係性は？",n:"例：幼なじみ、ずっと片思いしていた同級生",k:"q02",r:3,badge:"rec",bn:"関係性が明確だと感情の対比が生まれ、歌詞の深みが増す。"},
-      {l:"Q03",t:"何があったか、時系列で箇条書きにすると？",n:"順番通りじゃなくてもいい",k:"q03",r:6,badge:"rec",bn:"ストーリーの骨格。Verse 1・2の流れに直接反映される。"},
+      {l:"Q03",t:"何があったか、時系列で箇条書きにすると？",n:"順番通りじゃなくてもいい",k:"q03",r:6,badge:"rec",bn:"ストーリーの骨格。Aメロ（Verse 1・2）の流れに直接反映される。"},
     ]},
     {n:"LAYER 02",t:"場面の細部を出す",h:"具体的エピソード",qs:[
       {l:"Q04",t:"一番鮮明に覚えてる場面は？",n:"例：テーブルに置いてあった「食べてね」のメモ",k:"q04",r:3,badge:"rec",bn:"具体的な場面が歌詞のリアリティを大きく上げる。"},
       {l:"Q05",t:"そのとき届いた言葉・メッセージ・手紙は？",n:"例：「今から帰るね」というLINE",k:"q05",r:3,badge:"opt",bn:"あれば歌詞に直接使える素材になる。"},
       {l:"Q06",t:"2人だけが知ってる習慣・場所・もの・言葉は？",n:"例：パジャマ姿で甘えてくる / 夏の夜にバイクで走った",k:"q06",r:3,badge:"rec",bn:"他人には書けない細部がここから生まれる。歌詞の解像度を決める。"},
-      {l:"Q07",t:"「あのとき言えなかった」言葉はある？",n:"",k:"q07",r:2,badge:"opt",bn:"あればBridgeやOutroの核心になる。"},
+      {l:"Q07",t:"「あのとき言えなかった」言葉はある？",n:"",k:"q07",r:2,badge:"opt",bn:"あればCメロ（Bridge）やアウトロ（Outro）の核心になる。"},
     ]},
     {n:"LAYER 03",t:"感情を出す",h:"矛盾してていい",qs:[
-      {l:"Q08",t:"表向きに感じてたことは？",n:"例：当たり前になってた / 逃げたかった",k:"q08",r:2,badge:"opt",bn:"感情の表層。Verse 1〜2の入口になる。"},
-      {l:"Q09",t:"本当は何を感じてた？",n:"例：怖かっただけ / 甘えてたのは自分の方だった",k:"q09",r:3,badge:"rec",bn:"本音の感情がサビとBridgeの核心になる。矛盾してて正解。"},
-      {l:"Q10",t:"今でも続いてる感情は？",n:"後悔・未練・感謝・怒り・安堵…",k:"q10",r:2,badge:"opt",bn:"Outroの余韻に使える。"},
-      {l:"Q11",t:"相手への気持ちを正直に一言で言うと？",n:"うまい言葉じゃなくていい",k:"q11",r:2,badge:"opt",bn:"あればLast Chorusの締めに反映できる。"},
+      {l:"Q08",t:"表向きに感じてたことは？",n:"例：当たり前になってた / 逃げたかった",k:"q08",r:2,badge:"opt",bn:"感情の表層。Aメロ（Verse 1〜2）の入口になる。"},
+      {l:"Q09",t:"本当は何を感じてた？",n:"例：怖かっただけ / 甘えてたのは自分の方だった",k:"q09",r:3,badge:"rec",bn:"本音の感情がサビ（Chorus）とCメロ（Bridge）の核心になる。矛盾してて正解。"},
+      {l:"Q10",t:"今でも続いてる感情は？",n:"後悔・未練・感謝・怒り・安堵…",k:"q10",r:2,badge:"opt",bn:"アウトロ（Outro）の余韻に使える。"},
+      {l:"Q11",t:"相手への気持ちを正直に一言で言うと？",n:"うまい言葉じゃなくていい",k:"q11",r:2,badge:"opt",bn:"あれば大サビ（Last Chorus）の締めに反映できる。"},
     ]},
   ];
 
@@ -1354,7 +1354,8 @@ export default function App(){
                     {h:"必須とは",t:"最低限必要な情報。これがないとAIが方向性を決められない。必ず入力してから生成に進む。\n対象：Q01（テーマ）・Q12（核心の一文）・ENDING（終わり方）・ボーカル性別"},
                     {h:"推奨とは",t:"あるとクオリティが大きく上がる項目。できるだけ入力することを強くすすめる。入れるほど歌詞の精度が上がる。\n対象：Q02・Q03・Q04・Q06・Q09・言語の割合"},
                     {h:"任意とは",t:"個性や方向性をさらに絞り込む項目。こだわりたい人が使う。選ばなければAIが補完する。\n対象：Q05・Q07・Q08・Q10・Q11・詳細設定の全項目"},
-                    {h:"制作フロー",t:"STEP 0: テーマをAIと確認（ズレがないか）\nSTEP 1: 歌詞を生成\nSTEP 2: 2段階チェック（STAGE 1診断→STAGE 2修正）\nSTEP 3: タイトルを決める（再提案・自作も可）\nSTEP 4: ひらがな変換\nSTEP 5: 音楽生成AIプロンプトを生成（ジャンル提案も同時出力）\nSTEP 6: プロンプト最終チェック・クリップ設定\nSTEP 7: 曲の世界観カード（画像・映像制作用）"},
+                    {h:"曲の構成用語について",t:"Verse（バース）＝ Aメロ：物語の導入部分\nPre-Chorus（プリコーラス）＝ Bメロ：サビへの橋渡し\nChorus（コーラス）＝ サビ：曲のメインフレーズ\nBridge（ブリッジ）＝ Cメロ：展開・転換部分\nLast Chorus（ラストコーラス）＝ 大サビ：最後のクライマックス\nOutro（アウトロ）＝ エンディング：曲の締め\nIntro Chorus ＝ 冒頭にサビを持ってくる演出\n\n※Aメロ・Bメロ・サビ・Cメロは日本での呼び方です。"},
+                    {h:"制作フロー",t:"STEP 0: テーマをAIと確認（ズレがないか）\nSTEP 1: 歌詞を生成\nSTEP 2: 2段階チェック（STAGE 1診断→STAGE 2修正）\nSTEP 3: タイトルを決める（再生成・自作も可）\nSTEP 4: ひらがな変換\nSTEP 5: 音楽生成AIプロンプトを生成（ジャンル提案も同時出力）\nSTEP 6: プロンプト最終チェック・クリップ設定\nSTEP 7: 曲の世界観カード（画像・映像制作用）"},
                     {h:"2段階チェックについて",t:"STAGE 1では問題点のリストアップのみ行う（修正しない）。診断レポートを見て、全部直すか特定の項目だけ直すかをSTAGE 2で指示する。これにより意図しない変更を防ぐ。"},
                     {h:"ジャンルの決め方",t:"3つのモードがある。\n①AIにおまかせ：素材から最適なジャンルをAIが判断（ジャンルがわからない人はこれ）\n②選んで決める：複数選択可。選んだ順に主従が決まり、掛け合わせて生成する（例：シティポップ主×R&B従）\n③カスタム入力：ジャンル名とキーワードを自由に指定\n選ばなくてもAIにおまかせで生成できる。"},
                     {h:"詳細設定について",t:"CREATEのSETTINGS内「詳細設定を開く」の中にある項目は全て任意。選ばなくてもAIが補完するが、選ぶほど意図に近い出力になる。選んだ内容は歌詞・音楽生成AIプロンプト・最終チェックの全てに反映される。"},
