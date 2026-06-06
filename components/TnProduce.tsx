@@ -611,7 +611,7 @@ export default function App(){
   }
   async function doLyricCore(){
     const mat=buildMaterial();
-    setLoading("lyric");setLyric("");setLyricHistory([]);setChatDisplay([]);setLyricDiagnosis("");setWorldCard("");setLyricDiagCount(0);
+    setLoading("lyric");setLyric("");setLyricHistory([]);setLyricDiagnosis("");setWorldCard("");setLyricDiagCount(0);
     const userMsg="以下の素材と設定から歌詞を作成してください。\n\n"+mat+"\n【制作設定】\n"+buildSettings();
     try{
       let result="";
