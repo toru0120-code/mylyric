@@ -368,8 +368,6 @@ export default function App(){
   const[worldCard,setWorldCard]=useState("");
   const[loading,setLoading]=useState("");
   const[lyricHistory,setLyricHistory]=useState<{role:string;content:string}[]>([]);
-  const[chatDisplay,setChatDisplay]=useState<{role:string;content:string}[]>([]);
-  const[chatInput,setChatInput]=useState("");
   const[lyricDiagnosis,setLyricDiagnosis]=useState("");
   const[promptDiag,setPromptDiag]=useState("");
   const[copyOk,setCopyOk]=useState("");
@@ -398,8 +396,6 @@ export default function App(){
   // 音楽生成AI選択
   const[musicAI,setMusicAI]=useState("suno");
   const[styleLimit,setStyleLimit]=useState(300);
-  const chatEndRef=useRef<HTMLDivElement|null>(null);
-  useEffect(function(){if(chatEndRef.current)chatEndRef.current.scrollIntoView({behavior:"smooth"});},[chatDisplay]);
   useEffect(function(){window.scrollTo({top:0,behavior:"smooth"});},[tab]);
 
   // ジャンル関連：モードに応じた情報を返す
@@ -681,22 +677,6 @@ export default function App(){
     }
   }
   function handleLyricEditKey(e:React.KeyboardEvent<HTMLTextAreaElement>){if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendLyricEditChat();}}
-  async function sendChat(){
-    if(!chatInput.trim()||loading)return;if(!getActiveLyric()){alert("先に歌詞を生成するか、既存の歌詞を入力してください");return;}
-    const userMsg=chatInput.trim();setChatInput("");
-    const baseHistory=lyricHistory.length>0?lyricHistory:[{role:"assistant",content:getActiveLyric()}];
-    const nd=chatDisplay.concat([{role:"user",content:userMsg}]);
-    setChatDisplay(nd.concat([{role:"assistant",content:"生成中..."}]));
-    const nh=lyricHistory.concat([{role:"user",content:userMsg}]);
-    setLoading("chat");
-    try{
-      let r="";
-      await callAI(buildChatSys(),nh,function(res){r=res;const c=extractLyrics(res);setChatDisplay(nd.concat([{role:"assistant",content:c}]));if(c.includes("[")&&c.length>50)setLyric(c);},2000);
-      setLyricHistory(nh.concat([{role:"assistant",content:extractLyrics(r)}]));
-    }catch(e){setChatDisplay(nd.concat([{role:"assistant",content:"エラー: "+(e instanceof Error?e.message:String(e))}]));}
-    setLoading("");
-  }
-  function handleKey(e:React.KeyboardEvent<HTMLTextAreaElement>){if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendChat();}}
   async function doTitle(){
     if(!getActiveLyric()){alert("先に歌詞を生成するか、既存の歌詞を入力してください");return;}
     setLoading("title");setTitleParsed([]);setSelectedTitle("");setTitleMode("generated");
@@ -796,7 +776,7 @@ export default function App(){
     try{await callAI(sys,[{role:"user",content:userMsg}],function(r){setWorldCard(r);},2000);setWorldLocked(true);}catch(e){setWorldCard("エラー: "+(e instanceof Error?e.message:String(e)));}
     setLoading("");
   }
-  function insertPattern(text:string,num:string){setChatInput(text);setInsertOk(num);setTimeout(function(){setInsertOk(null);},2000);setTab("generate");}
+  function insertPattern(text:string,num:string){setChatEditInput(text);setInsertOk(num);setTimeout(function(){setInsertOk(null);},2000);setTab("generate");}
   function saveProject(){
     if(!pkey.trim()){setPst("err:プロジェクト名を入力してください");return;}
     const data=JSON.stringify({F,endings,genreMode,selectedGenres,customGenreName,customGenreKw,customGenreStyle,vocalGender,langRatio,vocalTexture,vocalRange,vocalOrigin,chordProg,bpm,targetAges,targetGender,metaphor,dual,structMode,parts,selKw,extraKw,ownLyric});
@@ -1415,7 +1395,7 @@ export default function App(){
                 </div>
               </div>
 
-              {["STEP 0でテーマ確認→STEP 1で歌詞生成→STEP 2で歌詞チェック・編集→STEP 3タイトル→STEP 4ひらがな変換→STEP 5プロンプト生成→STEP 6プロンプト最終チェック→STEP 7世界観カード。","歌詞とプロンプトのチェックは完全に独立。互いに影響しない。","世界観カードはChatGPT・Claude・Geminiに貼り付けて画像・映像プロンプトの作成に使える。"].map(function(t,i){
+              {["STEP 0でテーマ確認→STEP 1で歌詞生成→STEP 2で歌詞チェック・歌詞編集チャットで修正→STEP 3タイトル→STEP 4ひらがな変換→STEP 5プロンプト生成→STEP 6プロンプト最終チェック→STEP 7世界観カード。","歌詞とプロンプトのチェックは完全に独立。互いに影響しない。","世界観カードはChatGPT・Claude・Geminiに貼り付けて画像・映像プロンプトの作成に使える。"].map(function(t,i){
                 return <div key={i} className="t-tip"><span className="t-tip-m">—</span><span>{t}</span></div>;
               })}
             </div>
@@ -1519,7 +1499,9 @@ export default function App(){
                     {h:"推奨とは",t:"できれば入力してほしい項目です。入力するほど歌詞のリアリティと深みが増します。"},
                     {h:"任意とは",t:"こだわりたい人向けの項目です。空欄でもAIが最適な判断をします。"},
                     {h:"曲の構成用語について",t:"Verse（バース）＝ Aメロ：物語の導入部分\nPre-Chorus（プリコーラス）＝ Bメロ：サビへの橋渡し\nChorus（コーラス）＝ サビ：曲のメインフレーズ\nBridge（ブリッジ）＝ Cメロ：展開・転換部分\nLast Chorus（ラストコーラス）＝ 大サビ：最後のクライマックス\nOutro（アウトロ）＝ エンディング：曲の締め\nIntro Chorus ＝ 冒頭にサビを持ってくる演出\n\n※Aメロ・Bメロ・サビ・Cメロは日本での呼び方です。"},
-                    {h:"制作フロー",t:"STEP 0: テーマをAIと確認（ズレがないか）\nSTEP 1: 歌詞を生成（または既存の歌詞を入力）\nSTEP 2: 2段階チェック（STAGE 1診断→STAGE 2修正）\nSTEP 3: タイトルを決める（再生成・自作も可）\nSTEP 4: ひらがな変換\nSTEP 5: 音楽生成AIプロンプトを生成（ジャンル提案も同時出力）\nSTEP 6: プロンプト最終チェック\nSTEP 7: 曲の世界観カード（画像・映像制作用）"},
+                    {h:"制作フロー",t:"STEP 0: テーマをAIと確認（質問は最大3つ・再確認後は確定テーマを出力）\nSTEP 1: 歌詞を生成（または既存の歌詞を入力）\nSTEP 2: 歌詞の最終チェック・編集（診断＋歌詞編集AIチャットで修正）\nSTEP 3: タイトルを決める（再生成・自作も可）\nSTEP 4: ひらがな変換\nSTEP 5: 音楽生成AIプロンプトを生成（ジャンル提案も同時出力）\nSTEP 6: プロンプト最終チェック\nSTEP 7: 曲の世界観カード（画像・映像制作用）"},
+                    {h:"歌詞編集AIチャットについて",t:"STEP2の診断後に使える歌詞のブラッシュアップ専用チャット。\n\nクイック修正ボタンで入力を補助（自動送信しない）。\n送信するとAIが「修正前・修正後・変更理由」を表示。\n「歌詞へ反映する」ボタンで歌詞データに適用される。\n歌詞が変更されると診断結果がリセットされ、再診断を案内する。\n\n用途：感情強化・比喩調整・音数整理・韻追加・サビ強化・ジャンルらしさ調整など。"},
+                    {h:"REVISEタブについて",t:"REVISEは修正例を見る場所です。実際の修正は行いません。\n\n修正依頼の伝え方の例（7パターン）を参照して、\nSTEP2の歌詞編集AIチャットへ修正指示を入力してください。\n\n「→ GENERATEチャットへ」ボタンを押すとGENERATEタブへ移動します。"},
                     {h:"2段階チェックについて",t:"STAGE 1では問題点のリストアップのみ行う（修正しない）。診断レポートを見て、全部直すか特定の項目だけ直すかをSTAGE 2で指示する。これにより意図しない変更を防ぐ。"},
                     {h:"ジャンルの決め方",t:"3つのモードがある。\n①AIにおまかせ：素材から最適なジャンルをAIが判断（ジャンルがわからない人はこれ）\n②選んで決める：複数選択可。選んだ順に主従が決まり、掛け合わせて生成する（例：シティポップ主×R&B従）\n③カスタム入力：ジャンル名とキーワードを自由に指定\n選ばなくてもAIにおまかせで生成できる。"},
                     {h:"詳細設定について",t:"CREATEのSETTINGS内「詳細設定を開く」の中にある項目は全て任意。選ばなくてもAIが補完するが、選ぶほど意図に近い出力になる。選んだ内容は歌詞・音楽生成AIプロンプト・最終チェックの全てに反映される。"},
