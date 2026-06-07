@@ -687,8 +687,7 @@ export default function App(){
         setChatEditDisplay(function(prev){return prev.concat([{role:"assistant",content:"⚠ 修正済み歌詞全文が見つからなかったため反映できませんでした。\nもう一度「修正後の歌詞全文も含めて[Verse 1]から出力してください」と指示してください。"}]);});
       }
     }else{
-      setChatEditDisplay(function(prev){return prev.concat([{role:"assistant",content:"⚠ 修正済み歌詞全文が見つからなかったため反映できませんでした。
-もう一度「修正後の歌詞全文も含めて[Verse 1]から出力してください」と指示してください。"}]);});
+      setChatEditDisplay(function(prev){return prev.concat([{role:"assistant",content:"⚠ 修正済み歌詞全文が見つからなかったため反映できませんでした。\nもう一度「修正後の歌詞全文も含めて[Verse 1]から出力してください」と指示してください。"}]);});
     }
   }
   function handleLyricEditKey(e:React.KeyboardEvent<HTMLTextAreaElement>){if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendLyricEditChat();}}
