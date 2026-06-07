@@ -939,7 +939,7 @@ export default function App(){
               <div className="t-s">
                 <div className="t-sb" style={{background:"var(--gd)",border:"1px solid rgba(200,80,192,.15)",borderRadius:"12px",padding:"14px 16px"}}>
                   <div style={{fontSize:"12px",fontWeight:"600",color:"var(--tx)",marginBottom:"6px"}}>💡 入力について</div>
-                  <div style={{fontSize:"11px",color:"var(--txm)",lineHeight:"1.9",letterSpacing:".04em"}}><strong>Q01のみ必須</strong>です。Q02〜Q12は当てはまる場合だけ入力してください。<br/>空欄でも歌詞は生成できます。ただし入力するほど歌詞の<strong>精度・個性・感情表現は向上</strong>します。<br/><span style={{fontSize:"10px",color:"var(--txd)"}}>推奨項目（★）を入力すると特に効果的です。</span></div>
+                  <div style={{fontSize:"11px",color:"var(--txm)",lineHeight:"1.9",letterSpacing:".04em"}}><strong>Q01のみ必須</strong>です。Q02〜Q12は当てはまる場合だけ入力してください。<br/>空欄でも歌詞は生成できます。ただし入力するほど歌詞の<strong>精度・個性・感情表現は向上</strong>します。<br/><span style={{fontSize:"10px",color:"var(--txd)"}}>必須項目・推奨項目（★）を入力すると特に効果的です。</span></div>
                 </div>
               </div>
 
