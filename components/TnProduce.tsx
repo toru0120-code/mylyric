@@ -376,6 +376,11 @@ export default function App(){
   const[chatEditInput,setChatEditInput]=useState("");
   const[chatEditDisplay,setChatEditDisplay]=useState<{role:string;content:string}[]>([]);
   const[lyricChanged,setLyricChanged]=useState(false);
+  const[pendingLyricEdit,setPendingLyricEdit]=useState(false);
+  const[previousLyricBeforeEdit,setPreviousLyricBeforeEdit]=useState("");
+  const[selectedPromptFixes,setSelectedPromptFixes]=useState<string[]>([]);
+  const[promptApplyMessage,setPromptApplyMessage]=useState("");
+  const[previousPromptBeforeAdjust,setPreviousPromptBeforeAdjust]=useState("");
   const[ownLyric,setOwnLyric]=useState("");
   const[missingModal,setMissingModal]=useState<{items:string[];onProceed:()=>void}|null>(null);
   const[shortQ01Modal,setShortQ01Modal]=useState<{onProceed:()=>void}|null>(null);
@@ -484,9 +489,11 @@ export default function App(){
     setTitleParsed([]);setSelectedTitle("");setCustomTitle("");setTitleMode("generated");
     setPromptOut("");setWorldCard("");setLyricHistory([]);
     setLyricDiagnosis("");setPromptDiag("");
+    setPendingLyricEdit(false);setPreviousLyricBeforeEdit("");
+    resetPromptAdjustmentState();
   }
   function isQ01Empty(){return !F.q01.trim();}
-  function canGenerate(){return ownLyric.trim().length>0||((!isQ01Empty())&&themeGatePassed);}
+  function canGenerate(){return !isQ01Empty()||ownLyric.trim().length>0;}
   function canGenerateWithoutGate(){return !isQ01Empty()||ownLyric.trim().length>0;}
   function canPromptGenerate(){return getActiveLyric().trim().length>0;}
   function getActiveLyric(){return lyric.trim()||ownLyric.trim();}
@@ -546,7 +553,7 @@ export default function App(){
   }
   function buildChatSys(){
     const g=getGenre();const firstTag=getFirstTag();
-    return"あなたはプロの作詞家・音楽プロデューサーです。\nジャンル："+g.name+"\nルール：ユーザーの指示に従って歌詞を修正する・修正後は必ず歌詞全体を"+firstTag+"から始まる形で出力する・前置き・説明文は一切禁止・歌詞のみを出力する・行数・音数・整合性を常に確認する・"+g.name+"らしさを維持する";
+    return"あなたはプロの作詞家・音楽プロデューサーです。\nジャンル："+g.name+"\nルール：ユーザーの指示に従って歌詞を修正する・修正後は必ず歌詞全体を"+firstTag+"から始まる形で出力する・構成："+getEnabledParts().join(" → ")+"をこの順番で維持する・前置き・説明文は一切禁止・歌詞のみを出力する・行数・音数・整合性を常に確認する・"+g.name+"らしさを維持する";
   }
   function buildDiagSys(mat:string,settings:string,confirmedForDiag?:string){
     const g=getGenre();const firstTag=getFirstTag();
@@ -577,11 +584,13 @@ export default function App(){
   function getPromptOnly(){const sep=promptOut.indexOf("---");return sep>0?promptOut.slice(0,sep).trim():promptOut;}
   function getGenreSuggestion(){const sep=promptOut.indexOf("---ジャンル提案---");return sep>0?promptOut.slice(sep):"";} 
   async function doConfirm(revise?:string){
-    if(!canGenerate()){alert("Q01またはSTEP1の既存の歌詞を入力してください。");return;}
-    const mat=buildMaterial();if(!mat.trim()){alert("CREATEタブで素材を入力してください");return;}
+    const hasOwnLyric=ownLyric.trim().length>0;
+    const mat=buildMaterial();
+    const isOwnLyricMode=hasOwnLyric&&!mat.trim();
+    if(!F.q01.trim()&&!hasOwnLyric){alert("Q01またはSTEP1の既存の歌詞を入力してください。");return;}
+    if(!isOwnLyricMode&&!mat.trim()){alert("CREATEタブで素材を入力してください");return;}
     setLoading("confirm");setConfirmed("");
     const isRevise=!!revise;
-    const isOwnLyricMode=ownLyric.trim().length>0&&!buildMaterial().trim();
     const sys=isOwnLyricMode
       ?"あなたはプロの作詞家です。以下の歌詞を読んで、この曲のテーマを逆算して整理してください。新しい質問は追加しないでください。\n形式：\n【核心】〇〇（この歌詞が伝えようとしていること）\n【感情の流れ】始まり→変化→結末\n【確定テーマ】〇〇（2〜3行で歌詞の世界観・テーマを言語化）\n【確認】なし"
       :isRevise
@@ -613,7 +622,7 @@ export default function App(){
   }
   async function doLyricCore(){
     const mat=buildMaterial();
-    setLoading("lyric");setLyric("");setLyricHistory([]);setLyricDiagnosis("");setWorldCard("");setLyricDiagCount(0);
+    setLoading("lyric");setLyric("");setLyricHistory([]);setLyricDiagnosis("");setWorldCard("");setLyricDiagCount(0);setChatEditInput("");setChatEditDisplay([]);setPendingLyricEdit(false);setLyricChanged(false);setPreviousLyricBeforeEdit("");setHira("");
     const confirmedTheme=confirmed.trim();
     const confirmedPart=confirmedTheme?"【STEP0で整理された確定テーマ（最優先で参照してください）】\n"+confirmedTheme+"\n\n":"";
     const tailPart=confirmedTheme?"\n\nSTEP0の確定テーマを歌詞の中心軸として扱ってください。入力素材と矛盾する場合は入力素材を優先してください。":"";
@@ -646,7 +655,7 @@ export default function App(){
   async function doLyricAutoFix(){
     if(!getActiveLyric())return;setLoading("lyricFix");
     const sys=buildChatSys()+"\n致命的な問題のみを修正する。軽微な問題は修正しない。修正後は歌詞全体のみを出力する。";
-    const fixMsg="以下の診断結果の「🚨 致命的な問題」のみを修正してください。\n\n【診断結果】\n"+lyricDiagnosis+"\n\n【歌詞】\n"+lyric;
+    const fixMsg="以下の診断結果の「🚨 致命的な問題」のみを修正してください。\n\n【診断結果】\n"+lyricDiagnosis+"\n\n【歌詞】\n"+getActiveLyric();
     try{
       let result="";
       await callAI(sys,[{role:"user",content:fixMsg}],function(r){result=r;setLyric(extractLyrics(r));},2000);
@@ -659,36 +668,39 @@ export default function App(){
   async function sendLyricEditChat(){
     if(!chatEditInput.trim()||loading)return;
     if(!getActiveLyric()){alert("先に歌詞を生成するか、既存の歌詞を入力してください");return;}
+    if(pendingLyricEdit){alert("先に「歌詞へ反映する」または「チャットをリセット」してください。");return;}
     const userMsg=chatEditInput.trim();setChatEditInput("");
     const nd=chatEditDisplay.concat([{role:"user",content:userMsg}]);
     setChatEditDisplay(nd.concat([{role:"assistant",content:"修正中..."}]));
     setLoading("lyricEdit");
     const chatTheme=confirmed.trim();
-    const sys=buildChatSys()+(chatTheme?"\n\n【確定テーマ（最優先）】\n"+chatTheme:"")+"\n\n必ず以下の形式で出力する:\n修正前:\n（変更した行のみ）\n\n修正後:\n（変更後の行のみ）\n\n変更理由:\n（簡潔に）\n\n修正済み歌詞全文:\n（[Verse 1]から始まる歌詞全体）";
+    const sys=buildChatSys()+(chatTheme?"\n\n【確定テーマ（最優先）】\n"+chatTheme:"")+"\n\n必ず以下の形式で出力する:\n修正前:\n（変更した行のみ）\n\n修正後:\n（変更後の行のみ）\n\n変更理由:\n（簡潔に）\n\n修正済み歌詞全文:\n（必ず次の構成順で全体を出力："+getEnabledParts().join(" → ")+"）";
     const msgs=[{role:"user" as const,content:"現在の歌詞:\n"+getActiveLyric()+"\n\n診断結果:\n"+lyricDiagnosis+"\n\nユーザー指示:\n"+userMsg+"\n\n指定されていない部分は変更しないでください。歌詞全体のテーマ・構成は維持してください。"}];
     try{
       let r="";
       await callAI(sys,msgs,function(res){r=res;setChatEditDisplay(nd.concat([{role:"assistant",content:res}]));},2000);
       setChatEditDisplay(nd.concat([{role:"assistant",content:r}]));
-      setLyricChanged(true);
+      setLyricChanged(true);setPendingLyricEdit(true);
     }catch(e){setChatEditDisplay(nd.concat([{role:"assistant",content:"エラー: "+(e instanceof Error?e.message:String(e))}]));}
     setLoading("");
   }
-  function applyLyricEdit(text:string){
-    const marker="修正済み歌詞全文:";
-    const idx=text.indexOf(marker);
-    if(idx>=0){
-      const newLyric=extractLyrics(text.slice(idx+marker.length).trim());
-      if(newLyric&&newLyric.length>20){
-        setLyric(newLyric);setLyricChanged(true);setLyricDiagnosis("");setLyricDiagCount(0);
-        setChatEditDisplay(function(prev){return prev.concat([{role:"assistant",content:"✅ 歌詞を反映しました。STEP2の診断ボタンで再診断できます。"}]);});
-      }else{
-        setChatEditDisplay(function(prev){return prev.concat([{role:"assistant",content:"⚠ 修正済み歌詞全文が見つからなかったため反映できませんでした。\nもう一度「修正後の歌詞全文も含めて[Verse 1]から出力してください」と指示してください。"}]);});
-      }
-    }else{
-      setChatEditDisplay(function(prev){return prev.concat([{role:"assistant",content:"⚠ 修正済み歌詞全文が見つからなかったため反映できませんでした。\nもう一度「修正後の歌詞全文も含めて[Verse 1]から出力してください」と指示してください。"}]);});
-    }
-  }
+   function applyLyricEdit(text:string){
+     const marker="修正済み歌詞全文:";
+     const idx=text.indexOf(marker);
+     if(idx>=0){
+       const newLyric=extractLyrics(text.slice(idx+marker.length).trim());
+       if(newLyric&&newLyric.length>20){
+         setPreviousLyricBeforeEdit(getActiveLyric());
+         setLyric(newLyric);setLyricChanged(true);setLyricDiagnosis("");setLyricDiagCount(0);
+         setPendingLyricEdit(false);setHira("");
+         setChatEditDisplay(function(prev){return prev.concat([{role:"assistant",content:"✅ 歌詞を反映しました。「変更前に戻す」で元に戻せます。STEP2で再診断できます。"}]);});
+       }else{
+         setChatEditDisplay(function(prev){return prev.concat([{role:"assistant",content:"⚠ 反映できませんでした。もう一度「修正後の歌詞全文も含めて[Verse 1]から出力してください」と指示してください。"}]);});
+       }
+     }else{
+       setChatEditDisplay(function(prev){return prev.concat([{role:"assistant",content:"⚠ 反映できませんでした。もう一度「修正後の歌詞全文も含めて[Verse 1]から出力してください」と指示してください。"}]);});
+     }
+   }
   function handleLyricEditKey(e:React.KeyboardEvent<HTMLTextAreaElement>){if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendLyricEditChat();}}
   async function doTitle(){
     if(!getActiveLyric()){alert("先に歌詞を生成するか、既存の歌詞を入力してください");return;}
@@ -698,23 +710,77 @@ export default function App(){
     catch(e){setTitleParsed([{label:"エラー",value:e instanceof Error?e.message:String(e)}]);}
     setLoading("");
   }
-  async function doHira(){
+  function resetOwnLyric(){
+    setOwnLyric("");setLyric("");setHira("");
+    setLyricDiagnosis("");setLyricDiagCount(0);
+    setChatEditInput("");setChatEditDisplay([]);
+    setLyricChanged(false);setPendingLyricEdit(false);setPreviousLyricBeforeEdit("");
+    setLyricLocked(false);setTitleLocked(false);setTitleParsed([]);setSelectedTitle("");
+  }
+  function resetLyricEditChat(){
+    setChatEditInput("");setChatEditDisplay([]);setPendingLyricEdit(false);
+  }
+  function undoLyricEdit(){
+    if(!previousLyricBeforeEdit.trim()){alert("戻せる歌詞がありません。");return;}
+    setLyric(previousLyricBeforeEdit);setPreviousLyricBeforeEdit("");
+    setLyricChanged(false);setLyricDiagnosis("");setLyricDiagCount(0);
+    setChatEditDisplay(function(prev){return prev.concat([{role:"assistant",content:"↩ 変更前の歌詞に戻しました。"}]);});
+  }
+  function resetPromptAdjustmentState(){
+    setSelectedPromptFixes([]);setSelKw([]);setExtraKw("");
+    setKeywordsChanged(false);setFromKeywords(false);
+    setPromptApplyMessage("");setPreviousPromptBeforeAdjust("");
+  }
+  function undoPromptAdjustment(){
+    if(!previousPromptBeforeAdjust.trim()){alert("戻せるプロンプトがありません。");return;}
+    setPromptOut(previousPromptBeforeAdjust);setLastValidPrompt(previousPromptBeforeAdjust);
+    setPreviousPromptBeforeAdjust("");setPromptApplyMessage("↩ 反映前のプロンプトに戻しました。");
+  }
+  function togglePromptFix(fix:string){
+    setSelectedPromptFixes(function(prev){
+      return prev.includes(fix)?prev.filter(function(x){return x!==fix;}):prev.concat([fix]);
+    });
+    setPromptApplyMessage("");
+  }
+  async function applyPromptAdjustments(){
+    const currentPrompt=getPromptOnly();
+    if(!currentPrompt||currentPrompt.startsWith("エラー")){alert("先にプロンプトを生成してください。");return;}
+    const fixText=selectedPromptFixes.length>0?"【QuickFix指示】\n"+selectedPromptFixes.join("\n"):"";
+    const kwText=(selKw.length>0||extraKw.trim())?"【追加キーワード】\n"+(selKw.concat(extraKw.trim()?[extraKw.trim()]:[]).join(", ")):"";
+    if(!fixText&&!kwText){alert("反映するQuickFixまたはキーワードを選択してください。");return;}
+    setPreviousPromptBeforeAdjust(promptOut);
+    setLoading("promptFix");setPromptApplyMessage("");
+    const sys=buildPromptSys()+"\n既存プロンプトをベースに指定されたQuickFixと追加キーワードを自然に反映してください。出力はプロンプトのみ。説明文禁止。重複は整理し矛盾は統合してください。";
+    const userMsg="以下のプロンプトを調整してください。\n\n【現在のプロンプト】\n"+currentPrompt+"\n\n"+fixText+"\n\n"+kwText;
+    try{
+      let result="";
+      await callAI(sys,[{role:"user",content:userMsg}],function(r){result=r;setPromptOut(r);},1200);
+      if(result){
+        setLastValidPrompt(result);setPromptLocked(true);
+        setKeywordsChanged(false);setFromKeywords(false);
+        setSelectedPromptFixes([]);
+        setPromptApplyMessage("✅ プロンプトに反映されました。");
+      }
+    }catch(e){
+      setPromptOut(previousPromptBeforeAdjust||promptOut);
+      alert("プロンプトの反映に失敗しました。");
+    }
+    setLoading("");
+  }
+    async function doHira(){
     if(!getActiveLyric()){alert("先に歌詞を生成するか、既存の歌詞を入力してください");return;}
     setLoading("hira");setHira("");
-    const sys="あなたはプロの作詞家です。歌詞の漢字をひらがなに変換してください。\n\n変換ルール：\n・音読み・訓読みが複数ある漢字は全てひらがなに変換する\n・一般的でない・難しい漢字は全てひらがなに変換する\n・小学校低学年レベル以上の漢字は積極的にひらがなに変換する\n・人名・地名もひらがなに変換する\n・英語・記号・セクションタグ（[Verse]など）はそのまま\n・音数（モーラ数）は変えない\n・変換後の歌詞全体のみを出力（説明不要）";
+    const sys="あなたは音楽生成AI用の歌詞整形専門家です。以下の歌詞を音楽生成AIで歌わせやすい形に整えてください。\n\n【ルール】\n・日本語はひらがなへ変換（意味のまとまりごとに全角スペースで区切る）\n・自然な息継ぎ位置で改行を入れる\n・英語はそのまま残す\n・[Verse 1]等の構成タグはそのまま保持\n・意味・音数を変えない\n・説明文は禁止\n・変換後の歌詞のみを出力";
     try{await callAI(sys,[{role:"user",content:getActiveLyric()}],function(r){setHira(r);},2000);}catch(e){setHira("エラー: "+(e instanceof Error?e.message:String(e)));}
     setLoading("");
   }
   async function doPrompt(){
     if(!canPromptGenerate()){alert("先に歌詞を生成するか、STEP1の既存の歌詞欄に歌詞を入力してください。");return;}
-    if(!ownLyric.trim()&&F.q01.trim().length>0&&F.q01.trim().length<10){
-      setShortQ01Modal({onProceed:function(){setShortQ01Modal(null);doPromptCore();}});
-      return;
-    }
     doPromptCore();
   }
   async function doPromptCore(){
     if(promptLocked){if(!window.confirm("プロンプトを再生成すると現在のプロンプト・診断履歴が全て消えます。本当に再生成しますか？"))return;}
+    setPreviousPromptBeforeAdjust("");setPromptApplyMessage("");setSelectedPromptFixes([]);
     setLoading("prompt");setPromptOut("");setPromptDiag("");setPromptDiagCount(0);
     const g=getGenre();const kws=buildPromptKw();
     const lyricForPrompt=getActiveLyric();
@@ -787,7 +853,13 @@ export default function App(){
     const genreInfo=getGenreName();
     const sys="あなたはプロのアートディレクター兼作詞家です。曲の世界観を、画像・映像制作にそのまま使える形で言語化します。\n出力形式（この形式のみ・前置きや説明は禁止）：\n\nタイトル：（曲のタイトル）\n\nジャンル：\n（設定されているジャンルを記載）\n\nテーマ：\n（曲の核心を2行以内で）\n\n感情・雰囲気：\n（・区切りで5個程度）\n\n色調イメージ：\n（・区切りで具体的な色や光の情景を5個程度）\n\nシーンイメージ：\n（・区切りで映像に使える場面を5個程度）\n\nキーワード（英語）：\n（画像・映像生成にそのまま使える英語キーワードをカンマ区切りで10〜15個）";
     const reviseNote=revise?"\n\n【修正指示】\n"+revise:"";
-    const userMsg="以下の素材・歌詞・設定から曲の世界観カードを作成してください。\n\n【タイトル】\n"+titleLine+"\n\n【ジャンル】\n"+genreInfo+"\n\n【素材】\n"+mat+"\n【制作設定】\n"+buildSettings()+"\n【歌詞】\n"+getActiveLyric()+reviseNote;
+    const confirmedThemeForWorld=confirmed.trim();
+    const matForWorld=mat.trim();
+    const isWorldOwnLyricMode=!matForWorld&&ownLyric.trim().length>0;
+    const userMsg=(isWorldOwnLyricMode
+      ?"以下の確定テーマと歌詞・設定から曲の世界観カードを作成してください。素材の入力はありませんが、確定テーマと歌詞から世界観を構築してください。\n\n【タイトル】\n"+titleLine+"\n\n【ジャンル】\n"+genreInfo+(confirmedThemeForWorld?"\n\n【確定テーマ（最優先で参照）】\n"+confirmedThemeForWorld:"")+"\n\n【制作設定】\n"+buildSettings()+"\n【歌詞】\n"+getActiveLyric()
+      :"以下の素材・歌詞・設定から曲の世界観カードを作成してください。\n\n【タイトル】\n"+titleLine+"\n\n【ジャンル】\n"+genreInfo+(confirmedThemeForWorld?"\n\n【確定テーマ（最優先で参照）】\n"+confirmedThemeForWorld:"")+"\n\n【素材】\n"+matForWorld+"\n【制作設定】\n"+buildSettings()+"\n【歌詞】\n"+getActiveLyric()
+    )+reviseNote;
     try{await callAI(sys,[{role:"user",content:userMsg}],function(r){setWorldCard(r);},2000);setWorldLocked(true);}catch(e){setWorldCard("エラー: "+(e instanceof Error?e.message:String(e)));}
     setLoading("");
   }
@@ -939,7 +1011,7 @@ export default function App(){
               <div className="t-s">
                 <div className="t-sb" style={{background:"var(--gd)",border:"1px solid rgba(200,80,192,.15)",borderRadius:"12px",padding:"14px 16px"}}>
                   <div style={{fontSize:"12px",fontWeight:"600",color:"var(--tx)",marginBottom:"6px"}}>💡 入力について</div>
-                  <div style={{fontSize:"11px",color:"var(--txm)",lineHeight:"1.9",letterSpacing:".04em"}}><strong>Q01のみ必須</strong>です。Q02〜Q12は当てはまる場合だけ入力してください。<br/>空欄でも歌詞は生成できます。ただし入力するほど歌詞の<strong>精度・個性・感情表現は向上</strong>します。<br/><span style={{fontSize:"10px",color:"var(--txd)"}}>必須項目・推奨項目（★）を入力すると特に効果的です。</span></div>
+                  <div style={{fontSize:"11px",color:"var(--txm)",lineHeight:"1.9",letterSpacing:".04em"}}><strong>Q01のみ必須</strong>です。Q02〜Q12は当てはまる場合だけ入力してください。<br/>空欄でも歌詞は生成できます。ただし入力するほど歌詞の<strong>精度・個性・感情表現は向上</strong>します。<br/><span style={{fontSize:"10px",color:"var(--txd)"}}>推奨項目（★）を入力すると特に効果的です。</span></div>
                 </div>
               </div>
 
@@ -1134,7 +1206,7 @@ export default function App(){
                       <button className="t-btn t-btn-g" onClick={function(){doConfirm(confirmRevise);setConfirmRevise("");}} disabled={!!loading}>{loading==="confirm"?"確認中...":"修正して再確認する"}</button>
                     </div>
                   )}
-                  {canGenerateWithoutGate()&&!ownLyric.trim()&&!themeGatePassed&&(
+                  {canGenerate()&&!ownLyric.trim()&&!themeGatePassed&&(
                     <button className="t-btn t-btn-gh" style={{width:"100%",marginTop:"4px"}} onClick={function(){setThemeGatePassed(true);}} disabled={!!loading}>このまま歌詞生成へ進む（STEP0スキップ）</button>
                   )}
                   {themeGatePassed&&!confirmed&&<div className="t-info" style={{fontSize:"10px",borderColor:"rgba(126,200,126,.2)"}}>✅ STEP1が解放されました。歌詞生成へ進んでください。</div>}
@@ -1147,15 +1219,20 @@ export default function App(){
                 <div className="t-sb">
                   <div className="t-info">CREATEで入力した素材・設定が全て自動反映されます。既存の歌詞がある場合は下の欄に貼り付けてください。その場合は歌詞生成をスキップしてSTEP2以降が使えます。</div>
                   {!canGenerateWithoutGate()&&<div style={{fontSize:"11px",color:"var(--rd)",padding:"8px 12px",background:"rgba(224,85,85,0.08)",borderRadius:"8px",border:"1px solid rgba(224,85,85,0.2)",marginBottom:"8px"}}>Q01を入力するか、下の既存の歌詞欄に歌詞を入力してください。</div>}
-                  {canGenerateWithoutGate()&&!ownLyric.trim()&&!themeGatePassed&&<div style={{fontSize:"11px",color:"var(--txd)",padding:"8px 12px",background:"var(--gg)",borderRadius:"8px",border:"1px solid rgba(200,80,192,.12)",marginBottom:"8px"}}>STEP0でテーマ確認を行うか「このまま歌詞生成へ進む」を押すとGENERATE LYRICが使えます。</div>}
+                  {canGenerate()&&!ownLyric.trim()&&!themeGatePassed&&<div style={{fontSize:"11px",color:"var(--txd)",padding:"8px 12px",background:"var(--gg)",borderRadius:"8px",border:"1px solid rgba(200,80,192,.12)",marginBottom:"8px"}}>STEP0でテーマ確認を行うか「このまま歌詞生成へ進む」を押すとGENERATE LYRICが使えます。</div>}
                   <div style={{marginBottom:"12px",padding:"14px 16px",background:"var(--sf2)",border:"1px solid var(--bd)",borderRadius:"12px"}}>
                     <div style={{fontSize:"10px",color:"var(--txd)",marginBottom:"6px",letterSpacing:".05em"}}>既存の歌詞を使う（任意）</div>
                     <div style={{fontSize:"10px",color:"var(--txd)",marginBottom:"8px"}}>自分で書いた歌詞がある場合はここに入力。Q01が空でも使用可能。STEP2以降が使えます。</div>
                     <textarea rows={5} placeholder={"[Verse 1]\nここに歌詞を貼り付け..."} value={ownLyric} onChange={function(e){setOwnLyric(e.target.value);}} style={{marginBottom:"4px"}}/>
-                    {ownLyric.trim()&&<div style={{fontSize:"10px",color:"var(--gr)"}}>✅ 既存の歌詞が入力されています。STEP2以降が使えます。</div>}
+                    {ownLyric.trim()&&(
+                      <div style={{display:"flex",alignItems:"center",gap:"8px",marginTop:"4px"}}>
+                        <div style={{fontSize:"10px",color:"var(--gr)",flex:1}}>✅ 既存の歌詞が入力されています。STEP2以降が使えます。</div>
+                        <button className="t-btn t-btn-rd" style={{fontSize:"9px",padding:"5px 10px"}} onClick={resetOwnLyric}>リセット</button>
+                      </div>
+                    )}
                   </div>
                   <div style={{display:"flex",gap:"8px",alignItems:"center"}}>
-                    <button className="t-btn t-btn-g" style={{flex:1}} onClick={doLyric} disabled={!!loading||!canGenerate()||ownLyric.trim().length>0}>{loading==="lyric"?"生成中...":(!themeGatePassed&&!ownLyric.trim()&&canGenerateWithoutGate())?"STEP0を通過してください":ownLyric.trim()?"既存歌詞使用中":lyricLocked?"再生成する（履歴消去）":"GENERATE LYRIC"}</button>
+                    <button className="t-btn t-btn-g" style={{flex:1}} onClick={doLyric} disabled={!!loading||!canGenerate()||ownLyric.trim().length>0||(!themeGatePassed&&!ownLyric.trim()&&canGenerate())}>{loading==="lyric"?"生成中...":ownLyric.trim()?"既存歌詞使用中":(!themeGatePassed&&canGenerate())?"STEP0を先に行ってください":lyricLocked?"再生成する（履歴消去）":"GENERATE LYRIC"}</button>
                     {ownLyric.trim()&&<div style={{fontSize:"10px",color:"var(--txd)",marginTop:"4px"}}>既存の歌詞が入力されています。歌詞を生成する場合は既存の歌詞欄を空にしてください。</div>}
                   </div>
                   {(lyric||loading==="lyric")&&(
@@ -1233,7 +1310,10 @@ export default function App(){
                               <div className="t-msg-who">{m.role==="user"?"YOU":"MY LYRIC AI"}</div>
                               <div className="t-msg-body">{m.content}</div>
                               {m.role==="assistant"&&m.content.includes("修正済み歌詞全文:")&&(
-                                <button className="t-btn t-btn-g" style={{marginTop:"8px",padding:"8px 14px",fontSize:"10px"}} onClick={function(){applyLyricEdit(m.content);}}>歌詞へ反映する</button>
+                                <div style={{display:"flex",gap:"6px",marginTop:"8px",flexWrap:"wrap"}}>
+                                  <button className="t-btn t-btn-g" style={{padding:"8px 14px",fontSize:"10px"}} onClick={function(){applyLyricEdit(m.content);}}>歌詞へ反映する</button>
+                                  <button className="t-btn t-btn-gh" style={{padding:"8px 14px",fontSize:"10px"}} onClick={undoLyricEdit} disabled={!previousLyricBeforeEdit.trim()}>変更前に戻す</button>
+                                </div>
                               )}
                             </div>
                           );})}
@@ -1278,21 +1358,21 @@ export default function App(){
               </div>
 
               <div className="t-s">
-                <div className="t-sh"><span className="t-sn">STEP 4</span><span className="t-st">ひらがな変換</span><span className="t-sh2">読み間違い防止<br/>音数は変えない</span></div>
+                <div className="t-sh"><span className="t-sn">STEP 4</span><span className="t-st">AI用ひらがな整形</span><span className="t-sh2">読み間違い防止<br/>息継ぎ・リズム対応</span></div>
                 <div className="t-sb">
                   {!getActiveLyric()?(
-                    <div style={{fontSize:"11px",color:"var(--txd)",fontStyle:"italic"}}>STEP 1で歌詞を生成するか、既存の歌詞を入力するとひらがな変換が使えます。</div>
+                    <div style={{fontSize:"11px",color:"var(--txd)",fontStyle:"italic"}}>STEP 1で歌詞を生成するか、既存の歌詞を入力するとAI用ひらがな整形が使えます。</div>
                   ):(
                     <div>
-                      <div className="t-info" style={{marginBottom:"8px"}}>音楽生成AIが読み間違いやすい漢字をひらがなに変換する。海外製のAIは特に読み間違いが多いのでどのツールでも有効。<strong>音数は変わらない</strong>ように処理される。</div>
-                      <button className="t-btn t-btn-g" onClick={doHira} disabled={!!loading} style={{marginBottom:"8px"}}>{loading==="hira"?"変換中...":hira?"再変換する":"ひらがな変換"}</button>
+                      <div className="t-info" style={{marginBottom:"8px"}}>日本語をひらがな化し、意味のまとまりごとに全角スペースを入れて息継ぎ・リズムが分かる形に整形します。SunoやUdioでの読み間違いを防ぎ、より正確に歌わせることができます。</div>
+                      <button className="t-btn t-btn-g" onClick={doHira} disabled={!!loading} style={{marginBottom:"8px"}}>{loading==="hira"?"整形中...":hira?"再整形する":"AI用ひらがな整形"}</button>
                       {hira&&(
                         <div>
                           <textarea readOnly value={extractHira(hira)} style={{minHeight:"200px",maxHeight:"280px",background:"rgba(200,80,192,0.04)",borderColor:"rgba(200,80,192,0.2)",color:"var(--tx)",cursor:"text",marginBottom:"8px"}}/>
-                          <button className={"t-btn "+(copyOk==="hira"?"t-btn-ok":"t-btn-g")} style={{width:"100%",padding:"12px"}} onClick={function(){doCopy(extractHira(hira),"hira");}}>{copyLabel("hira","ひらがな変換済み歌詞をコピーする")}</button>
+                          <button className={"t-btn "+(copyOk==="hira"?"t-btn-ok":"t-btn-g")} style={{width:"100%",padding:"12px"}} onClick={function(){doCopy(extractHira(hira),"hira");}}>{copyLabel("hira","AI用ひらがなをコピーする")}</button>
                         </div>
                       )}
-                      {loading==="hira"&&<div style={{fontSize:"11px",color:"var(--txd)",fontStyle:"italic"}}>変換中...</div>}
+                      {loading==="hira"&&<div style={{fontSize:"11px",color:"var(--txd)",fontStyle:"italic"}}>整形中...</div>}
                     </div>
                   )}
                 </div>
@@ -1386,7 +1466,7 @@ export default function App(){
                           <button className="t-btn t-btn-gh" style={{width:"100%"}} onClick={function(){setTab("keywords");}}>KEYWORDSタブへ</button>
                         </div>
                       )}
-                      {promptOut&&!promptOut.startsWith("エラー")&&<button className={"t-btn "+(copyOk==="prompt2"?"t-btn-ok":"t-btn-g")} style={{width:"100%",padding:"12px",marginTop:"8px"}} onClick={function(){doCopy(getPromptOnly(),"prompt2");}}>{copyLabel("prompt2","修正済みプロンプトをコピーする")}</button>}
+
                     </div>
                   )}
 
@@ -1401,7 +1481,7 @@ export default function App(){
                 <div className="t-sb">
                   <div className="t-info">
                     <strong>このカードの使い方</strong><br/>
-                    コピーしてChatGPT・Claude・Geminiに貼り付けるだけで、以下の用途に使える。<br/><br/>
+                    コピーしてChatGPT・Claude・Geminiに貼り付けるだけで、以下の用途に使える。<br/><br/>STEP0でテーマ確認を行っている場合は、確定テーマも世界観カードに反映されます。<br/><br/>
                     ・<strong>ジャケット画像</strong> →「Midjourney用のプロンプトを作って」<br/>
                     ・<strong>MV・映像</strong> →「Gemini Veo用の映像プロンプトをシーン別に作って」<br/>
                     ・<strong>SNS投稿画像</strong> →「Canva用のデザイン指示を作って」
@@ -1431,7 +1511,7 @@ export default function App(){
                 </div>
               </div>
 
-              {["STEP 0でテーマ確認→STEP 1で歌詞生成→STEP 2で歌詞チェック・歌詞編集チャットで修正→STEP 3タイトル→STEP 4ひらがな変換→STEP 5プロンプト生成→STEP 6プロンプト最終チェック→STEP 7世界観カード。","歌詞とプロンプトのチェックは完全に独立。互いに影響しない。","世界観カードはChatGPT・Claude・Geminiに貼り付けて画像・映像プロンプトの作成に使える。"].map(function(t,i){
+              {["STEP 0でテーマ確認→STEP 1で歌詞生成→STEP 2で歌詞チェック・歌詞編集チャットで修正→STEP 3タイトル→STEP 4 AI用ひらがな整形→STEP 5プロンプト生成→STEP 6プロンプト最終チェック→STEP 7世界観カード。","歌詞とプロンプトのチェックは完全に独立。互いに影響しない。","世界観カードはChatGPT・Claude・Geminiに貼り付けて画像・映像プロンプトの作成に使える。"].map(function(t,i){
                 return <div key={i} className="t-tip"><span className="t-tip-m">—</span><span>{t}</span></div>;
               })}
             </div>
@@ -1460,9 +1540,14 @@ export default function App(){
                           {label:"テンポ・BPMを明確に",fix:"テンポとBPMをより明確なキーワードで表現してください"},
                           {label:"シンプルに整理",fix:"キーワードを厳選してシンプルで効果的なプロンプトに整理してください"},
                         ].map(function(item,i){return(
-                          <button key={i} className="t-btn t-btn-gh" style={{fontSize:"10px",padding:"8px 12px"}} onClick={function(){doPromptFix(item.fix);}} disabled={!!loading}>{item.label}</button>
+                          <button key={i} className={"t-btn "+(selectedPromptFixes.includes(item.fix)?"t-btn-g":"t-btn-gh")} style={{fontSize:"10px",padding:"8px 12px"}} onClick={function(){togglePromptFix(item.fix);}} disabled={!!loading}>{item.label}</button>
                         );})}
                       </div>
+                      <div style={{display:"flex",gap:"8px",alignItems:"center",marginTop:"8px",flexWrap:"wrap"}}>
+                        <button className="t-btn t-btn-g" onClick={applyPromptAdjustments} disabled={!!loading||(selectedPromptFixes.length===0&&selKw.length===0&&!extraKw.trim())}>プロンプトに反映させる</button>
+                        <button className="t-btn t-btn-gh" onClick={undoPromptAdjustment} disabled={!previousPromptBeforeAdjust.trim()}>反映前に戻す</button>
+                      </div>
+                      {promptApplyMessage&&<div className="t-info" style={{marginTop:"6px",fontSize:"10px",borderColor:"rgba(126,200,126,.2)",color:"var(--gr)"}}>{promptApplyMessage}</div>}
                     </div>
                   </div>
 
@@ -1481,7 +1566,11 @@ export default function App(){
                       })}
                       <div className="t-div"></div>
                       <div className="t-q"><div className="t-ql">自由入力</div><textarea rows={2} placeholder="追加したいキーワードを英語で入力（カンマ区切り）" value={extraKw} onChange={function(e){setExtraKw(e.target.value);setKeywordsChanged(true);}}/></div>
-                      <button className="t-btn t-btn-g" onClick={function(){setTab("generate");setFromKeywords(true);}}>プロンプト再生成へ進む</button>
+                      <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
+                      <button className="t-btn t-btn-g" onClick={applyPromptAdjustments} disabled={!!loading||(selKw.length===0&&!extraKw.trim()&&selectedPromptFixes.length===0)}>プロンプトに反映させる</button>
+                      <button className="t-btn t-btn-gh" onClick={function(){setTab("generate");setFromKeywords(true);}}>GENERATEへ戻る</button>
+                    </div>
+                    {promptApplyMessage&&<div className="t-info" style={{marginTop:"6px",fontSize:"10px",borderColor:"rgba(126,200,126,.2)",color:"var(--gr)"}}>{promptApplyMessage}</div>}
                     </div>
                   </div>
 
@@ -1530,7 +1619,8 @@ export default function App(){
                   {[
                     {h:"💡 歌詞の精度について",t:"MY LYRICはQ01のみでも歌詞を生成できます。\n\nただし、Q02〜Q12の内容が増えるほどAIが感情・場面・関係性を深く理解できるため、歌詞の個性や説得力は向上します。\n\nもし歌詞が抽象的・一般的だと感じた場合は、CREATEタブで推奨項目を追加して再生成してみてください。\n\n特に以下の項目は精度向上に効果的です。\n・Q04（一番鮮明に覚えている場面）\n・Q06（2人だけが知っている習慣や言葉）\n・Q08（表向きの感情）\n・Q09（本音の感情）\n・Q12（この曲で一番伝えたいこと）"},
                     {h:"🔑 Q01（特別必須）について",t:"Q01が空欄の場合はGENERATEが動きません。テーマが決まらないと歌詞の方向が定まらないため、最初に必ず入力してください。\nまた10文字未満の場合は警告が表示されます。「どう感じたか」も一緒に入力すると精度が大きく上がります。\n例：「好きだった人に振られて悔しい」"},
-                    {h:"既存の歌詞を使う場合",t:"STEP1の既存の歌詞欄に歌詞を入力すると、Q01が空でもSTEP2〜7が全て使えます。\n・歌詞の最終チェック・診断\n・タイトル生成\n・ひらがな変換\n・プロンプト生成\n・世界観カード\nGENERATE LYRICは既存の歌詞がある場合は使えません。\n\nまた、STEP0の「歌詞からテーマを分析する」を実行すると、歌詞からテーマを逆算して確定テーマを生成します。この確定テーマが歌詞診断・編集チャット・世界観カードに反映されるため、精度が向上します。"},
+                    {h:"既存の歌詞を使う場合",t:"STEP1の既存の歌詞欄に歌詞を入力すると、Q01が空でもSTEP2〜7が全て使えます。\n・歌詞の最終チェック・診断\n・タイトル生成\n・AI用ひらがな整形\n・プロンプト生成\n・世界観カード\nGENERATE LYRICは既存の歌詞がある場合は使えません。\n\nまた、STEP0の「歌詞からテーマを分析する」を実行すると、歌詞からテーマを逆算して確定テーマを生成します。この確定テーマが歌詞診断・編集チャット・世界観カードに反映されるため、精度が向上します。"},
+                    {h:"AI用ひらがな整形について",t:"STEP4の「AI用ひらがな整形」は、単純なひらがな変換ではなく意味のまとまりごとに全角スペースを入れ、息継ぎ・リズムが分かる形に整形します。\n\n歌詞が変更された場合は再整形が必要です（変更時に自動でリセットされます）。\n音楽生成AIへはひらがな整形済みの歌詞を貼り付けることで読み間違いを防げます。"},
                     {h:"音楽生成AIとプロンプト文字数",t:"STEP5で使用する音楽生成AIと文字数上限を選択できます。\nSuno無料：200〜300文字推奨\nSuno有料（v5）：最大1,000文字\nUdio：文字数制限なし（詳細ほど高品質）\n文字数を超えた場合は自動でトリミングされます。"},
                     {h:"プロンプト生成の条件",t:"プロンプト生成は歌詞がある場合のみ使用できます。\n\n・STEP1で歌詞を生成した場合\n・STEP1の既存の歌詞欄に歌詞を入力した場合\n\nどちらかの状態でSTEP5のGENERATE PROMPTが使えます。\n\n理由：プロンプトは歌詞の世界観・ジャンル・感情を元に生成する設計のためです。"},
                     {h:"プロンプトの生成方法について",t:"プロンプトは2つの方法で生成できます。\n\n①CREATEの設定をベースに生成\nジャンル・ボーカル・言語・BPM・コード進行などCREATEタブで設定した内容が自動反映されます。\n\n②既存の歌詞をベースに生成\nSTEP1の既存の歌詞欄に歌詞を入力すると、その歌詞の内容もプロンプトに反映されます。\n\n両方の情報を合わせて使うことで、より精度の高いプロンプトが生成されます。"},
@@ -1539,14 +1629,14 @@ export default function App(){
                     {h:"任意とは",t:"こだわりたい人向けの項目です。空欄でもAIが最適な判断をします。"},
                     {h:"曲の構成用語について",t:"Verse（バース）＝ Aメロ：物語の導入部分\nPre-Chorus（プリコーラス）＝ Bメロ：サビへの橋渡し\nChorus（コーラス）＝ サビ：曲のメインフレーズ\nBridge（ブリッジ）＝ Cメロ：展開・転換部分\nLast Chorus（ラストコーラス）＝ 大サビ：最後のクライマックス\nOutro（アウトロ）＝ エンディング：曲の締め\nIntro Chorus ＝ 冒頭にサビを持ってくる演出\n\n※Aメロ・Bメロ・サビ・Cメロは日本での呼び方です。"},
                     {h:"制作フロー",t:"【通常ルート】\nSTEP 0: テーマ確認（任意・スキップ可）→ 確認またはスキップでSTEP1が解放\nSTEP 1: 歌詞を生成\nSTEP 2: 歌詞チェック＋歌詞編集AIチャット\nSTEP 3〜7: タイトル・ひらがな変換・プロンプト・世界観カード\n\n【既存歌詞ルート】\nSTEP 1: 既存の歌詞を入力\nSTEP 0: 「歌詞からテーマを分析する」でテーマ逆算（任意・精度向上）\nSTEP 2〜7: そのまま利用可能"},
-                    {h:"KEYWORDSタブのQUICK FIXについて",t:"ボタンを押すとAIがプロンプトを直接修正します（即時送信）。\n修正前のプロンプトは自動的に保持されるため、失敗してもやり直せます。\n\nEXTRA KEYWORDSでキーワードを追加した場合は「プロンプト再生成へ進む」でGENERATEに戻り、プロンプトを再生成してください。"},
+                    {h:"KEYWORDSタブのQUICK FIXについて",t:"QUICK FIXのボタンは選択するだけでは反映されません。\n選択後に「プロンプトに反映させる」を押すと、選択したQUICK FIXとキーワードをまとめてプロンプトに反映します。\n\n反映後は「反映前に戻す」で元のプロンプトに戻せます（GENERATE PROMPTでの再生成後は戻せません）。"},
                     {h:"歌詞編集AIチャットについて",t:"STEP2の診断後に使える歌詞のブラッシュアップ専用チャット。\n\nクイック修正ボタンで入力を補助（自動送信しない）。\n送信するとAIが「修正前・修正後・変更理由」を表示。\n「歌詞へ反映する」ボタンで歌詞データに適用される。\n歌詞が変更されると診断結果がリセットされ、再診断を案内する。\n\n用途：感情強化・比喩調整・音数整理・韻追加・サビ強化・ジャンルらしさ調整など。"},
-                    {h:"REVISEタブについて",t:"REVISEは修正依頼の「伝え方の例」を見る場所です。実際の修正はここでは行いません。\n\n7パターンの修正例を参考に、STEP2の歌詞編集AIチャットへ指示を入力してください。\n\n「→ GENERATEチャットへ」を押すとGENERATEタブの歌詞編集AIチャットへ移動します。チャット入力は自分で自由に行ってください。"},
+                    {h:"REVISEタブについて",t:"REVISEは修正依頼の「伝え方の例」を見る場所です。実際の修正はここでは行いません。\n\n7パターンの修正例を参考に、STEP2の歌詞編集AIチャットへ指示を入力してください。\n\n「→ GENERATEチャットへ」を押すと修正例のテキストが入力欄に自動挿入されます。そのまま編集・追記してからSENDで送信してください。"},
                     {h:"STEP0はスキップできますか？",t:"はい、スキップできます。\n\n「このまま歌詞生成へ進む」ボタンを押すとSTEP0をスキップしてSTEP1が解放されます。\n\nSTEP0を行うと、AIがあなたの素材を整理して【核心】【感情の流れ】【確定テーマ】を出力します。この確定テーマが歌詞生成・診断・編集チャットに自動的に反映されるため、より意図に近い歌詞・診断結果が得られます。\n\nQ01を変更するとSTEP0の通過状態がリセットされます（Q12・ENDINGの変更ではリセットされません）。\n\n既存の歌詞を使う場合は「歌詞からテーマを分析する」ボタンで歌詞からテーマを逆算できます。"},
                     {h:"2段階チェックについて",t:"STAGE 1では問題点のリストアップのみ行う（修正しない）。診断レポートを見て、全部直すか特定の項目だけ直すかをSTAGE 2で指示する。これにより意図しない変更を防ぐ。"},
                     {h:"ジャンルの決め方",t:"3つのモードがある。\n①AIにおまかせ：素材から最適なジャンルをAIが判断（ジャンルがわからない人はこれ）\n②選んで決める：複数選択可。選んだ順に主従が決まり、掛け合わせて生成する（例：シティポップ主×R&B従）\n③カスタム入力：ジャンル名とキーワードを自由に指定\n選ばなくてもAIにおまかせで生成できる。"},
                     {h:"詳細設定について",t:"CREATEのSETTINGS内「詳細設定を開く」の中にある項目は全て任意。選ばなくてもAIが補完するが、選ぶほど意図に近い出力になる。選んだ内容は歌詞・音楽生成AIプロンプト・最終チェックの全てに反映される。"},
-                    {h:"コピーについて",t:"歌詞・音楽生成AIプロンプト・ひらがな変換済み歌詞はそれぞれ専用のコピーボタンがある。コピーしたテキストには余計な説明文は含まれず、そのまま各AIに貼り付けて使える。"},
+                    {h:"コピーについて",t:"歌詞・音楽生成AIプロンプト・AI用ひらがな整形済み歌詞はそれぞれ専用のコピーボタンがある。コピーしたテキストには余計な説明文は含まれず、そのまま各AIに貼り付けて使える。"},
                     {h:"プロジェクトの保存について",t:"プロジェクト名を決めてSAVEするとこの端末のブラウザ内に保存される。別端末・別ユーザーとの共有には対応していません。別端末で続きを行う場合はSupabase連携が必要（将来実装予定）。\n同じ端末・同じブラウザ内での作業の引き継ぎには使える。共有には同じプロジェクト名を使う。"},
                   ].map(function(item,i){return (
                     <div key={i} className="t-guide-item"><div className="t-guide-h">{item.h}</div><div className="t-guide-txt">{item.t}</div></div>
