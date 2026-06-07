@@ -20,7 +20,6 @@ type Layer = {
 
 
 const S = `
-@import url('https:
 .t,.t *{box-sizing:border-box;margin:0;padding:0;}
 .t{--g:#c850c0;--g2:#4158d0;--gd:rgba(200,80,192,0.12);--gg:rgba(200,80,192,0.06);--bg:#060610;--sf:#0c0c1e;--sf2:#10102a;--bd:#1e1e38;--tx:#f0eeff;--txm:#9896b8;--txd:#4a4870;--gr:#7ec87e;--rd:#e05555;--grad:linear-gradient(135deg,#c850c0,#4158d0);font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;}
 .t-bg{position:fixed;inset:0;pointer-events:none;z-index:0;background:radial-gradient(ellipse 80% 60% at 0% 0%,rgba(200,80,192,.08) 0%,transparent 50%),radial-gradient(ellipse 60% 40% at 100% 100%,rgba(65,88,208,.08) 0%,transparent 50%);}
@@ -844,7 +843,7 @@ export default function App(){
 
   return (
     <div>
-      <style dangerouslySetInnerHTML={{__html:S}} />
+      <style>{S}</style>
       <div className="t">
         <div className="t-bg"></div>
         <div className="t-w">
