@@ -1534,7 +1534,7 @@ export default function App(){
                         <div style={{fontSize:"10px",color:lyric.trim()?"var(--txd)":"var(--gr)",flex:1}}>
                           {lyric.trim()?"📌 元歌詞（参照用）":"✅ 既存の歌詞が入力されています。STEP2以降が使えます。"}
                         </div>
-                        <button className="t-btn t-btn-rd" style={{fontSize:"9px",padding:"5px 10px"}} onClick={resetOwnLyric}>リセット</button>
+                        <button className="t-btn t-btn-rd" style={{fontSize:"9px",padding:"5px 10px"}} onClick={resetOwnLyric}>歌詞データを全消去</button>
                       </div>
                     )}
                   </div>
