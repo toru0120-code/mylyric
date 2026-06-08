@@ -892,6 +892,8 @@ export default function App(){
   function handleLyricEditKey(e:React.KeyboardEvent<HTMLTextAreaElement>){
     if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendLyricEditChat();}
   }
+
+  async function doTitle(){
     if(!getActiveLyric()){alert("先に歌詞を生成するか、既存の歌詞を入力してください");return;}
     setLoading("title");setTitleParsed([]);setSelectedTitle("");setTitleMode("generated");
     const sys="あなたはプロの作詞家です。歌詞のタイトル候補を3つ出してください。\n1. 日本語タイトル\n2. 英語タイトル\n3. 日英ミックスタイトル（例：夜の蝶 / A Love Story）\nそれぞれ1行ずつ、番号付きで出力してください。タイトルの値のみで説明不要。";
