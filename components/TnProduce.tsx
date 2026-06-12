@@ -148,10 +148,38 @@ textarea:focus,input:focus{border-color:rgba(200,80,192,.4);background:rgba(200,
 .t-title-opt.sel{border-color:transparent;background:var(--grad);color:#fff;}
 .t-title-label{font-family:'Space Grotesk',sans-serif;font-size:8px;color:var(--g);opacity:.6;letter-spacing:.1em;margin-bottom:3px;}
 .t-step-label{font-family:'Space Grotesk',sans-serif;font-size:9px;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;font-weight:700;}
-.t-guide-item{padding:14px 0;border-bottom:1px solid var(--bd);}
+.t-guide-item{padding:0;border-bottom:1px solid var(--bd);overflow:hidden;}
 .t-guide-item:last-child{border-bottom:none;}
-.t-guide-h{font-family:'Space Grotesk',sans-serif;font-size:9px;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;font-weight:700;}
-.t-guide-txt{font-size:11px;color:var(--txm);line-height:2;letter-spacing:.04em;white-space:pre-wrap;}
+.t-guide-h-btn{width:100%;display:flex;align-items:center;justify-content:space-between;padding:14px 0;cursor:pointer;background:none;border:none;text-align:left;-webkit-tap-highlight-color:transparent;}
+.t-guide-h{font-family:'Space Grotesk',sans-serif;font-size:9px;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:.1em;text-transform:uppercase;font-weight:700;}
+.t-guide-arr{font-size:10px;color:var(--txd);transition:transform .3s ease;flex-shrink:0;}
+.t-guide-arr.open{transform:rotate(180deg);}
+.t-guide-body{max-height:0;overflow:hidden;transition:max-height .35s ease,padding .35s ease;}
+.t-guide-body.open{max-height:2000px;}
+.t-guide-txt{font-size:11px;color:var(--txm);line-height:2;letter-spacing:.04em;white-space:pre-wrap;padding-bottom:14px;}
+/* アコーディオン（STEP・Q） */
+.t-acc-body{max-height:0;overflow:hidden;transition:max-height .4s ease;}
+.t-acc-body.open{max-height:4000px;}
+.t-acc-hdr{display:flex;align-items:center;justify-content:space-between;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.t-acc-arr{font-size:11px;color:var(--txd);transition:transform .3s ease;margin-left:8px;}
+.t-acc-arr.open{transform:rotate(180deg);}
+/* マイクロアニメーション */
+@keyframes fadeSlideIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+.t-fadein{animation:fadeSlideIn .35s ease forwards;}
+@keyframes checkPop{0%{transform:scale(0);}60%{transform:scale(1.3);}100%{transform:scale(1);}}
+.t-check-pop{display:inline-block;animation:checkPop .4s ease forwards;}
+/* ガラスモーフィズム（REVISEカード） */
+.t-revise-glass{background:rgba(255,255,255,.04);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:16px;margin-bottom:12px;transition:border-color .2s,background .2s;}
+.t-revise-glass:active{background:rgba(200,80,192,.08);border-color:rgba(200,80,192,.3);}
+/* MIXカードタップエフェクト */
+.t-mix-cat-item{cursor:pointer;transition:transform .15s ease,background .2s;-webkit-tap-highlight-color:transparent;}
+.t-mix-cat-item:active{transform:scale(.97);}
+/* テキスト選択禁止（全体）*/
+.t{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;}
+/* 選択許可（入力・表示エリア）*/
+.t textarea,.t input[type=text],.t-selectable{-webkit-user-select:text;-moz-user-select:text;user-select:text;}
+/* ボタンタップ沈み込み */
+.t-btn:active,.t-seg-o:active,.t-chip:active{transform:scale(.97);transition:transform .1s;}
 .t-ov{position:fixed;inset:0;background:rgba(9,9,14,.93);z-index:100;display:flex;align-items:center;justify-content:center;padding:20px;}
 .t-mo{background:var(--sf2);border:1px solid rgba(200,80,192,.2);border-radius:20px;max-width:460px;width:100%;overflow:hidden;}
 .t-mo-top{padding:28px 24px 20px;border-bottom:1px solid var(--bd);}
@@ -487,6 +515,10 @@ export default function App(){
   const[chorusRepeat,setChorusRepeat]=useState<number|null>(null); // null:未選択（AI判断）1:全て同じ 2:Chorus同じ・Last変える 3:Chorus変化・Last全書換 4:全て異なる
   const[modulationMode,setModulationMode]=useState<"off"|"on"|null>(null); // null:未選択 "off":変調なし "on":変調あり
   const[modulationPos,setModulationPos]=useState<number|null>(null); // null:未選択 0:ブリッジ 1:大サビ 2:両方
+  // UI折りたたみstate
+  const[openSteps,setOpenSteps]=useState<number[]>([0,1,2,3,4,5,6,7]); // 全STEP展開
+  const[openGuideItems,setOpenGuideItems]=useState<number[]>([]); // ガイド全閉
+  const[openQItems,setOpenQItems]=useState<number[]>([0,1,2,3,4,5,6,7,8,9,10,11]); // Q全展開
   const[structMode,setStructMode]=useState("basic");
   const[parts,setParts]=useState<Part[]>(DEFAULT_PARTS.map(function(p){return Object.assign({},p) as Part;}));
   const[pkey,setPkey]=useState("");
@@ -1173,11 +1205,11 @@ export default function App(){
     const sys=`あなたはMY LYRICの専門サポートAIです。MY LYRICのタブ構成と機能を正確に把握した上で回答してください。
 
 【MY LYRICのタブ構成】
-・CREATEタブ：素材入力（Q01〜Q12・ENDING）とSETTINGS（ジャンル・ボーカル・言語・コーラスの繰り返し・詳細設定）を行う場所。ここで全ての入力をする。詳細設定内の変調（キーチェンジ）は未選択/OFF/ONの3状態があり、OFFはプロンプトに「変調なし」指示を追加、ONはブリッジ・大サビ・両方から選択してプロンプトに反映する。
+・CREATEタブ：素材入力（Q01〜Q12・ENDING）とSETTINGS（ジャンル・ボーカル・言語・コーラスの繰り返し・詳細設定）を行う場所。Q01・Q12・ENDINGは常時表示（必須）。Q02〜Q11は項目名タップで開閉（任意・入力済みは概要を表示）。上部に進捗バーあり（0〜13/13）。詳細設定内の変調（キーチェンジ）は未選択/OFF/ONの3状態があり、OFFはプロンプトに「変調なし」指示を追加、ONはブリッジ・大サビ・両方から選択してプロンプトに反映する。ソロも同様に未選択/OFF/ONの3状態あり。OFF・ONボタンはトグル式で選択中のボタンを再タップすると未選択に戻る。ジャンルは38ジャンルから最大3つ選択可。選択するとジャンル説明が表示される。
 ・GENERATEタブ：STEP0〜7を順番に実行する場所。テーマ確認・歌詞生成・診断・タイトル・ひらがな整形・プロンプト生成・世界観カードを全てここで行う。
 ・KEYWORDSタブ：プロンプトのQuickFix調整と追加キーワードの設定。GENERATEタブでプロンプト生成後に使う。
 ・REVISEタブ：歌詞修正の伝え方の例を見る場所。実際の修正はGENERATEタブのSTEP2の歌詞編集AIチャットで行う。
-・MIXタブ：ジャンルミックスの組み合わせ例（64パターン・11カテゴリ）を確認する場所。世界観・気分別に分類されている。
+・MIXタブ：ジャンルミックスの組み合わせ例（64パターン・11カテゴリ）を確認する場所。世界観・気分別に分類されている。行をタップするとCREATEタブのジャンル設定に自動反映される。
 
 【重要】音楽生成AIによってプロンプトの解釈・対応状況が異なる。変調・ソロ・BPMなどの詳細な指示は対応していないAIでは無視される場合がある。プロンプトが反映されない場合は再生成・文字数削減・ジャンルキーワードの優先を案内する。
 ・GUIDEタブ：このAIサポートチャットと使い方ガイドがある場所。
@@ -1398,6 +1430,27 @@ export default function App(){
                 </div>
               </div>
 
+              {/* 進捗バー */}
+              {(()=>{
+                const allQKeys=["q01","q02","q03","q04","q05","q06","q07","q08","q09","q10","q11","q12"];
+                const filled=allQKeys.filter(function(k){return (F as Record<string,string>)[k]?.trim();}).length;
+                const hasEnding=endings.length>0;
+                const total=13; // Q01〜Q12 + ENDING
+                const filledTotal=filled+(hasEnding?1:0);
+                const pct=Math.round(filledTotal/total*100);
+                return(
+                  <div className="t-s" style={{padding:"12px 16px"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"6px"}}>
+                      <div style={{fontSize:"9px",fontFamily:"'Space Grotesk',sans-serif",letterSpacing:".1em",color:"var(--txd)",textTransform:"uppercase"}}>素材入力</div>
+                      <div style={{fontSize:"9px",color:"var(--g)",fontFamily:"'Space Grotesk',sans-serif"}}>{filledTotal}<span style={{color:"var(--txd)"}}>/{total}</span></div>
+                    </div>
+                    <div style={{height:"4px",background:"rgba(255,255,255,.06)",borderRadius:"2px",overflow:"hidden"}}>
+                      <div style={{height:"100%",width:pct+"%",background:"var(--grad)",borderRadius:"2px",transition:"width .4s ease"}}></div>
+                    </div>
+                  </div>
+                );
+              })()}
+
               <div className="t-s">
                 <div className="t-sb" style={{background:"var(--gd)",border:"1px solid rgba(200,80,192,.15)",borderRadius:"12px",padding:"14px 16px"}}>
                   <div style={{fontSize:"12px",fontWeight:"600",color:"var(--tx)",marginBottom:"6px"}}>💡 入力について</div>
@@ -1407,7 +1460,8 @@ export default function App(){
                       ① <strong style={{color:"var(--tx)"}}>Q01</strong>（特別必須）→ テーマの軸<br/>
                       ② <strong style={{color:"var(--tx)"}}>Q12・ENDING</strong>（必須）→ 核心と着地点<br/>
                       ③ <strong style={{color:"var(--tx)"}}>推奨項目（★）</strong> → Q02・Q04・Q06・Q08・Q09<br/>
-                      ④ 任意項目 → Q03・Q05・Q07・Q10・Q11
+                      ④ 任意項目 → Q03・Q05・Q07・Q10・Q11<br/>
+                      <span style={{color:"var(--txd)"}}>※任意項目は項目名をタップで開閉。入力済みは概要を表示。</span>
                     </span>
                   </div>
                 </div>
@@ -1419,19 +1473,46 @@ export default function App(){
                   <div className="t-sb">{sec.qs.map(function(q,i){
                     const isQ01=q.k==="q01";
                     const q01Locked=isQ01&&confirmedLocked;
+                    const isRequired=q.badge==="req-special"||q.badge==="req";
+                    const val=(F as Record<string,string>)[q.k]||"";
+                    const isFilled=val.trim().length>0;
+                    const isOpen=isRequired||openQItems.includes(i+sec.qs.length*LAYERS.indexOf(sec));
+                    const qIdx=["q01","q02","q03","q04","q05","q06","q07","q08","q09","q10","q11"].indexOf(q.k);
+                    const isOpenByState=isRequired||openQItems.includes(qIdx);
                     return (
                     <div key={q.k}>{i>0&&<div className="t-div"></div>}
-                      <div className="t-q">
-                        <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"2px"}}><div className="t-ql">{q.l}</div><Badge type={q.badge as "req"|"rec"|"opt"|"req-special"}/></div>
-                        {q01Locked&&(
-                          <div className="t-info" style={{marginBottom:"6px",borderColor:"rgba(200,80,192,.3)",fontSize:"10px"}}>
-                            🔒 テーマ確認済みのためQ01は編集できません。変更する場合はCREATEタブ右下のRESETボタンで全てリセットしてください。
+                      {isRequired?(
+                        <div className="t-q">
+                          <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"2px"}}><div className="t-ql">{q.l}</div><Badge type={q.badge as "req"|"rec"|"opt"|"req-special"}/></div>
+                          {q01Locked&&(
+                            <div className="t-info" style={{marginBottom:"6px",borderColor:"rgba(200,80,192,.3)",fontSize:"10px"}}>
+                              🔒 テーマ確認済みのためQ01は編集できません。変更する場合はCREATEタブ右下のRESETボタンで全てリセットしてください。
+                            </div>
+                          )}
+                          <div className="t-badge-note">{q.bn}</div>
+                          <div className="t-qt">{q.t}{q.n&&<span className={"t-qn"+(q.badge==="req"?" star":"")}>{q.n}</span>}</div>
+                          <textarea rows={q.r} placeholder="ここに書く" value={val} onChange={sf(q.k)} readOnly={q01Locked} style={q01Locked?{opacity:.6,cursor:"not-allowed",background:"rgba(0,0,0,.1)"}:{}}/>
+                        </div>
+                      ):(
+                        <div className="t-q" style={{padding:"0"}}>
+                          <div className="t-acc-hdr" style={{padding:"8px 0"}} onClick={function(){setOpenQItems(function(prev){return prev.includes(qIdx)?prev.filter(function(x){return x!==qIdx;}):prev.concat([qIdx]);});}}>
+                            <div style={{display:"flex",alignItems:"center",gap:"8px",flex:1}}>
+                              <div className="t-ql">{q.l}</div>
+                              <Badge type={q.badge as "req"|"rec"|"opt"|"req-special"}/>
+                              {isFilled&&!isOpenByState&&<span style={{fontSize:"9px",color:"var(--gr)",marginLeft:"4px"}}>✅ {val.trim().slice(0,20)}{val.trim().length>20?"...":""}</span>}
+                              {!isFilled&&!isOpenByState&&<span style={{fontSize:"9px",color:"var(--txd)",marginLeft:"4px"}}>未入力</span>}
+                            </div>
+                            <span className={"t-acc-arr"+(isOpenByState?" open":"")}>▼</span>
                           </div>
-                        )}
-                        <div className="t-badge-note">{q.bn}</div>
-                        <div className="t-qt">{q.t}{q.n&&<span className={"t-qn"+(q.badge==="req"?" star":"")}>{q.n}</span>}</div>
-                        <textarea rows={q.r} placeholder="ここに書く" value={(F as Record<string,string>)[q.k]} onChange={sf(q.k)} readOnly={q01Locked} style={q01Locked?{opacity:.6,cursor:"not-allowed",background:"rgba(0,0,0,.1)"}:{}}/>
-                      </div>
+                          <div className={"t-acc-body"+(isOpenByState?" open":"")}>
+                            <div style={{paddingTop:"6px"}}>
+                              <div className="t-badge-note">{q.bn}</div>
+                              <div className="t-qt">{q.t}{q.n&&<span className={"t-qn"+(q.badge==="req"?" star":"")}>{q.n}</span>}</div>
+                              <textarea rows={q.r} placeholder="ここに書く" value={val} onChange={sf(q.k)}/>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                     );
                   })}</div>
@@ -1692,8 +1773,8 @@ export default function App(){
 
               {/* STEP 0 */}
               <div className="t-s">
-                <div className="t-sh"><span className="t-sn">STEP 0</span><span className="t-st">テーマをAIと確認する</span><span className="t-sh2">任意・精度向上</span></div>
-                <div className="t-sb">
+                <div className="t-acc-hdr" onClick={function(){setOpenSteps(function(prev){return prev.includes(0)?prev.filter(function(x){return x!==0;}):prev.concat([0]);});}}><span className="t-sn">STEP 0</span><span className="t-st">テーマをAIと確認する</span><span className="t-sh2">任意・精度向上</span><span className={"t-acc-arr"+(openSteps.includes(0)?" open":"")}>▼</span></div>
+                <div className={"t-acc-body"+(openSteps.includes(0)?" open":"")}>
                   {ownLyric.trim()?(
                     <div className="t-info">既存の歌詞からテーマを逆算して分析します。確定テーマが歌詞診断・編集チャット・世界観カードに反映されます。</div>
                   ):(
@@ -1704,7 +1785,7 @@ export default function App(){
                     <button className="t-btn t-btn-g" onClick={function(){doConfirm();}} disabled={!!loading||!canGenerate()}>{loading==="confirm"?"確認中...":ownLyric.trim()?"歌詞からテーマを分析する":"テーマを確認する"}</button>
                   ):(
                     <div style={{display:"flex",flexDirection:"column",gap:"8px"}}>
-                      <div className="t-info" style={{fontSize:"10px"}}>✅ 確認済み。ズレがある場合は修正指示を入力して再確認してください。</div>
+                      <div className="t-info" style={{fontSize:"10px"}}><span className="t-check-pop">✅</span> 確認済み。ズレがある場合は修正指示を入力して再確認してください。</div>
                       <textarea rows={2} placeholder="修正指示（例：主人公は女性です。相手は幼なじみです。）" value={confirmRevise} onChange={function(e){setConfirmRevise(e.target.value);}}/>
                       <button className="t-btn t-btn-g" onClick={function(){doConfirm(confirmRevise);setConfirmRevise("");}} disabled={!!loading}>{loading==="confirm"?"確認中...":"修正して再確認する"}</button>
                     </div>
@@ -1715,8 +1796,8 @@ export default function App(){
 
               {/* STEP 1 */}
               <div className="t-s">
-                <div className="t-sh"><span className="t-sn">STEP 1</span><span className="t-st">歌詞を生成する</span><span className="t-sh2">全設定が反映される</span></div>
-                <div className="t-sb">
+                <div className="t-acc-hdr" onClick={function(){setOpenSteps(function(prev){return prev.includes(1)?prev.filter(function(x){return x!==1;}):prev.concat([1]);});}}><span className="t-sn">STEP 1</span><span className="t-st">歌詞を生成する</span><span className="t-sh2">全設定が反映される</span><span className={"t-acc-arr"+(openSteps.includes(1)?" open":"")}>▼</span></div>
+                <div className={"t-acc-body"+(openSteps.includes(1)?" open":"")}>
                   <div className="t-info">CREATEで入力した素材・設定が全て自動反映されます。既存の歌詞がある場合は下の欄に貼り付けてください。</div>
                   {!canGenerate()&&<div style={{fontSize:"11px",color:"var(--rd)",padding:"8px 12px",background:"rgba(224,85,85,0.08)",borderRadius:"8px",border:"1px solid rgba(224,85,85,0.2)",marginBottom:"8px"}}>Q01を入力するか、下の既存の歌詞欄に歌詞を入力してください。</div>}
                   <div style={{marginBottom:"12px",padding:"14px 16px",background:"var(--sf2)",border:"1px solid var(--bd)",borderRadius:"12px"}}>
@@ -1746,6 +1827,9 @@ export default function App(){
                         <div style={{fontSize:"10px",color:lyric.trim()?"var(--txd)":"var(--gr)",flex:1}}>
                           {lyric.trim()?"📌 元歌詞（参照用）":"✅ 既存の歌詞が入力されています。STEP2以降が使えます。"}
                         </div>
+                        <button className={"t-btn "+(copyOk==="ownLyric"?"t-btn-ok":"t-btn-g")} style={{fontSize:"9px",padding:"5px 10px"}} onClick={function(){navigator.clipboard.writeText(ownLyric).then(function(){setCopyOk("ownLyric");setTimeout(function(){setCopyOk("");},1500);});}}>
+                          {copyOk==="ownLyric"?"✅ コピー済み":"コピーする"}
+                        </button>
                         <button className="t-btn t-btn-rd" style={{fontSize:"9px",padding:"5px 10px"}} onClick={resetOwnLyric}>歌詞データを全消去</button>
                       </div>
                     )}
@@ -1754,7 +1838,7 @@ export default function App(){
                     <button className="t-btn t-btn-g" style={{flex:1}} onClick={doLyric} disabled={!!loading||!canGenerate()||ownLyric.trim().length>0}>{loading==="lyric"?"生成中...":ownLyric.trim()?"既存歌詞使用中":lyricLocked?"再生成する（履歴消去）":"GENERATE LYRIC"}</button>
                   </div>
                   {(lyric||loading==="lyric")&&(
-                    <div>
+                    <div className={lyric?"t-fadein":""}>
                       <textarea readOnly value={lyric||(loading==="lyric"?"生成中...":"")} style={{minHeight:"280px",maxHeight:"400px",background:"rgba(200,80,192,0.04)",borderColor:"rgba(200,80,192,0.2)",color:"var(--tx)",cursor:"text",marginBottom:"8px"}}/>
                       {getActiveLyric()&&<button className={"t-btn "+(copyOk==="lyric"?"t-btn-ok":"t-btn-g")} style={{width:"100%",padding:"12px"}} onClick={function(){doCopy(getActiveLyric(),"lyric");}}>{copyLabel("lyric","通常の歌詞をコピーする（漢字あり）")}</button>}
                     </div>
@@ -1764,8 +1848,8 @@ export default function App(){
 
               {/* STEP 2 */}
               <div className="t-s">
-                <div className="t-sh"><span className="t-sn">STEP 2</span><span className="t-st">歌詞の最終チェック・編集</span><span className="t-sh2">診断 {lyricDiagCount}/2回目{lyricDiagCount>0?" 完了":""}</span></div>
-                <div className="t-sb">
+                <div className="t-acc-hdr" onClick={function(){setOpenSteps(function(prev){return prev.includes(2)?prev.filter(function(x){return x!==2;}):prev.concat([2]);});}}><span className="t-sn">STEP 2</span><span className="t-st">歌詞の最終チェック・編集</span><span className="t-sh2">診断 {lyricDiagCount}/2回目{lyricDiagCount>0?" 完了":""}</span><span className={"t-acc-arr"+(openSteps.includes(2)?" open":"")}>▼</span></div>
+                <div className={"t-acc-body"+(openSteps.includes(2)?" open":"")}>
                   {!getActiveLyric()?(
                     <div style={{fontSize:"11px",color:"var(--txd)",fontStyle:"italic"}}>STEP 1で歌詞を生成するか、既存の歌詞を入力すると使えます。</div>
                   ):(
@@ -1861,8 +1945,8 @@ export default function App(){
 
               {/* STEP 3 */}
               <div className="t-s">
-                <div className="t-sh"><span className="t-sn">STEP 3</span><span className="t-st">タイトルを決める</span><span className="t-sh2">選択・再生成・自作</span></div>
-                <div className="t-sb">
+                <div className="t-acc-hdr" onClick={function(){setOpenSteps(function(prev){return prev.includes(3)?prev.filter(function(x){return x!==3;}):prev.concat([3]);});}}><span className="t-sn">STEP 3</span><span className="t-st">タイトルを決める</span><span className="t-sh2">選択・再生成・自作</span><span className={"t-acc-arr"+(openSteps.includes(3)?" open":"")}>▼</span></div>
+                <div className={"t-acc-body"+(openSteps.includes(3)?" open":"")}>
                   <div className="t-info" style={{fontSize:"10px"}}>日本語・英語・日英ミックスの3候補を自動生成します。</div>
                   {!getActiveLyric()?(
                     <div style={{fontSize:"11px",color:"var(--txd)",fontStyle:"italic"}}>STEP 1で歌詞を生成するか、既存の歌詞を入力するとタイトル生成が使えます。</div>
@@ -1890,8 +1974,8 @@ export default function App(){
 
               {/* STEP 4 */}
               <div className="t-s">
-                <div className="t-sh"><span className="t-sn">STEP 4</span><span className="t-st">AI用ひらがな整形</span><span className="t-sh2">読み間違い防止</span></div>
-                <div className="t-sb">
+                <div className="t-acc-hdr" onClick={function(){setOpenSteps(function(prev){return prev.includes(4)?prev.filter(function(x){return x!==4;}):prev.concat([4]);});}}><span className="t-sn">STEP 4</span><span className="t-st">AI用ひらがな整形</span><span className="t-sh2">読み間違い防止</span><span className={"t-acc-arr"+(openSteps.includes(4)?" open":"")}>▼</span></div>
+                <div className={"t-acc-body"+(openSteps.includes(4)?" open":"")}>
                   {!getActiveLyric()?(
                     <div style={{fontSize:"11px",color:"var(--txd)",fontStyle:"italic"}}>STEP 1で歌詞を生成するか、既存の歌詞を入力するとAI用ひらがな整形が使えます。</div>
                   ):(
@@ -1915,8 +1999,8 @@ export default function App(){
 
               {/* STEP 5 */}
               <div className="t-s">
-                <div className="t-sh"><span className="t-sn">STEP 5</span><span className="t-st">音楽生成AIプロンプトを生成する</span><span className="t-sh2">{musicAI==="udio"?"文字数制限なし":styleLimit+"文字上限"}</span></div>
-                <div className="t-sb">
+                <div className="t-acc-hdr" onClick={function(){setOpenSteps(function(prev){return prev.includes(5)?prev.filter(function(x){return x!==5;}):prev.concat([5]);});}}><span className="t-sn">STEP 5</span><span className="t-st">音楽生成AIプロンプトを生成する</span><span className="t-sh2">{musicAI==="udio"?"文字数制限なし":styleLimit+"文字上限"}</span><span className={"t-acc-arr"+(openSteps.includes(5)?" open":"")}>▼</span></div>
+                <div className={"t-acc-body"+(openSteps.includes(5)?" open":"")}>
                   <div className="t-info">設定したジャンル・ボーカル・言語・全設定が自動反映される。</div>
                   <div style={{display:"flex",flexDirection:"column",gap:"8px",marginBottom:"4px"}}>
                     <div>
@@ -1950,7 +2034,7 @@ export default function App(){
                     )}
                   </div>
                   {(promptOut||loading==="prompt")&&(
-                    <div>
+                    <div className={promptOut?"t-fadein":""}>
                       <textarea readOnly value={getPromptOnly()||(loading==="prompt"?"生成中...":"")} style={{minHeight:"140px",maxHeight:"220px",background:"rgba(200,80,192,0.04)",borderColor:getPromptOnly().length>getStyleLimit()?"rgba(224,85,85,0.4)":"rgba(200,80,192,0.2)",color:"var(--tx)",cursor:"text",fontFamily:"'Space Grotesk',sans-serif",fontSize:"11px",marginBottom:"8px"}}/>
                       {promptOut&&!promptOut.startsWith("エラー")&&<button className={"t-btn "+(copyOk==="prompt"?"t-btn-ok":"t-btn-g")} style={{width:"100%",padding:"12px"}} onClick={function(){doCopy(getPromptOnly(),"prompt");}}>{copyLabel("prompt","音楽生成AIプロンプトをコピーする")}</button>}
                       {getGenreSuggestion()&&<div className="t-out" style={{marginTop:"8px",fontSize:"11px",borderColor:"rgba(200,80,192,.15)"}}>{getGenreSuggestion()}</div>}
@@ -1961,8 +2045,8 @@ export default function App(){
 
               {/* STEP 6 */}
               <div className="t-s">
-                <div className="t-sh"><span className="t-sn">STEP 6</span><span className="t-st">プロンプト最終チェック</span><span className="t-sh2">任意</span></div>
-                <div className="t-sb">
+                <div className="t-acc-hdr" onClick={function(){setOpenSteps(function(prev){return prev.includes(6)?prev.filter(function(x){return x!==6;}):prev.concat([6]);});}}><span className="t-sn">STEP 6</span><span className="t-st">プロンプト最終チェック</span><span className="t-sh2">任意</span><span className={"t-acc-arr"+(openSteps.includes(6)?" open":"")}>▼</span></div>
+                <div className={"t-acc-body"+(openSteps.includes(6)?" open":"")}>
                   {!promptOut||promptOut.startsWith("エラー")?(
                     <div style={{fontSize:"11px",color:"var(--txd)",fontStyle:"italic"}}>STEP 5でプロンプトを生成すると使えます。</div>
                   ):(
@@ -2010,8 +2094,8 @@ export default function App(){
 
               {/* STEP 7 */}
               <div className="t-s">
-                <div className="t-sh"><span className="t-sn">STEP 7</span><span className="t-st">曲の世界観カード</span><span className="t-sh2">画像・映像制作用</span></div>
-                <div className="t-sb">
+                <div className="t-acc-hdr" onClick={function(){setOpenSteps(function(prev){return prev.includes(7)?prev.filter(function(x){return x!==7;}):prev.concat([7]);});}}><span className="t-sn">STEP 7</span><span className="t-st">曲の世界観カード</span><span className="t-sh2">画像・映像制作用</span><span className={"t-acc-arr"+(openSteps.includes(7)?" open":"")}>▼</span></div>
+                <div className={"t-acc-body"+(openSteps.includes(7)?" open":"")}>
                   <div className="t-info">
                     <strong>このカードの使い方</strong><br/>
                     コピーしてChatGPT・Claude・Geminiに貼り付けるだけで、以下の用途に使える。<br/><br/>
@@ -2033,7 +2117,7 @@ export default function App(){
                         </div>
                       )}
                       {worldCard&&(
-                        <div>
+                        <div className="t-fadein">
                           <textarea readOnly value={worldCard} style={{minHeight:"260px",maxHeight:"380px",background:"rgba(200,80,192,0.04)",borderColor:"rgba(200,80,192,0.2)",color:"var(--tx)",cursor:"text",marginBottom:"8px"}}/>
                           <button className={"t-btn "+(copyOk==="world"?"t-btn-ok":"t-btn-g")} style={{width:"100%",padding:"12px"}} onClick={function(){doCopy(worldCard,"world");}}>{copyLabel("world","世界観カードをコピーする")}</button>
                         </div>
@@ -2121,7 +2205,7 @@ export default function App(){
               ):(
                 <div>
                   {REVISE_PATTERNS.map(function(p){return (
-                    <div className="t-pat" key={p.num}>
+                    <div className="t-revise-glass" key={p.num}>
                       <div className="t-pat-h"><span className="t-pat-n">PATTERN {p.num}</span><span className="t-pat-t">{p.title}</span></div>
                       <div className="t-pat-b">{p.desc}<div className="t-pat-ex">{p.ex}</div>
                         <button className="t-pat-ins" onClick={function(){setInsertOk(p.num);setTimeout(function(){setTab("generate");setInsertOk(null);},800);}}>→ GENERATEチャットへ</button>
@@ -2147,7 +2231,13 @@ export default function App(){
                       <span>主ジャンル</span><span>従ジャンル①</span><span>従ジャンル②</span><span>イメージ</span>
                     </div>
                     {cat.items.map(function(item,i){return(
-                      <div key={i} className="t-mix-row">
+                      <div key={i} className="t-mix-row t-mix-cat-item" onClick={function(){
+                        const g=item.genres.filter(Boolean);
+                        if(g.length>0){
+                          const ids=g.map(function(name){const found=GENRES.find(function(x){return x.name===name;});return found?found.id:null;}).filter(Boolean) as string[];
+                          if(ids.length>0){setSelectedGenres(ids);setGenreMode("select");setTab("create");alert('ジャンルを設定しました。CREATEタブのSETTINGSを確認してください。');}
+                        }
+                      }}>
                         <span style={{color:"var(--g)",fontFamily:"'Space Grotesk',sans-serif",fontSize:"10px"}}>{item.genres[0]}</span>
                         <span>{item.genres[1]||"—"}</span>
                         <span style={{color:"var(--txd)"}}>{item.genres[2]||"—"}</span>
@@ -2157,13 +2247,16 @@ export default function App(){
                   </div>
                 </div>
               );})}
+              <div className="t-s" style={{padding:"12px 16px"}}>
+                <div style={{fontSize:"10px",color:"var(--txd)"}}>💡 行をタップするとCREATEタブのジャンル設定に自動反映されます。</div>
+              </div>
             </div>
           )}
 
           {/* ===== GUIDE ===== */}
           {tab==="guide"&&(
             <div>
-              <div className="t-hero"><div className="t-eye">Guide — MY LYRIC</div><h1 className="t-h1">使い方<em>ガイド</em></h1><p className="t-sub">MY LYRICの使い方と制作フローを確認できます。AIサポートチャットで質問もできます。</p></div>
+              <div className="t-hero"><div className="t-eye">Guide — MY LYRIC</div><h1 className="t-h1">使い方<em>ガイド</em></h1><p className="t-sub">MY LYRICの使い方と制作フローを確認できます。AIサポートチャットで質問もできます。</p><div style={{fontSize:"10px",color:"var(--txd)",marginTop:"8px"}}>📖 項目名をタップすると詳細が開閉します</div></div>
 
               {/* AIサポートチャット（先頭） */}
               <div className="t-s" id="support-chat-section">
@@ -2223,10 +2316,18 @@ export default function App(){
                     {h:"インストゥルメンタルソロ設定について",t:"CREATEタブの詳細設定（「詳細設定を開く」）に追加されています。\n\nONにすると歌詞構成にソロパートタグ（例：[Guitar Solo]）が自動挿入され、プロンプトにも対応するキーワードが追加されます。OFFにすると「ソロなし」の指示がプロンプトに追加されます。\n\n設定項目：\n・OFF / ON（タップで選択・もう一度タップで解除して未選択に戻す）\n・挿入位置：Bridge前 / 大サビ前（タップで選択・再タップで解除）\n・楽器の種類：ギター・ピアノ・サックス・バイオリン・シンセ・和楽器（複数選択可・タップで選択/解除）\n\n未選択（OFF・ONどちらも選んでいない）：AIが素材・ジャンルに合わせて判断します。\n楽器を選択しない場合はジャンルに合わせてAIが最適なソロを判断します。"},
                     {h:"サビの繰り返し設定について",t:"CREATEタブのSETTINGSに追加されています（言語設定の下・詳細設定の上）。\n\nコーラスが複数ある場合にサビの歌詞変化をコントロールできます。\n\n選択肢：\n①コーラス全て同じ：中毒性・統一感を重視\n②コーラス同じ・大サビ変える：ラストのみクライマックスに\n③コーラス少し変化・大サビ全書換：徐々に変化してラストで昇華\n④全て異なる：各サビで異なる表現\n\n未選択の場合はAIが素材に合わせて自動で判断します。\n※ Chorus×2以上とLast Chorusが両方ONの構成のときのみ全4択表示。それ以外は非表示。"},
                     {h:"詳細設定について",t:"CREATEタブのSETTINGS内「詳細設定を開く」から設定できます。\n\n全て任意です。未選択の項目はAIが素材・ジャンル・感情に合わせて自動で判断します。こだわりたい部分だけ選択すれば十分です。\n\n設定項目：\n・構成（基本/カスタム）\n・声の雰囲気\n・声域（低め←→高め）\n・ボーカリスト系統\n・コード進行\n・BPM・テンポ（遅め←→速め）\n・ターゲット年齢・性別\n・比喩・匂わせのレベル（直接←→比喩）\n・二重構造\n・インストゥルメンタルソロ\n・変調（キーチェンジ）※未選択/OFF/ONの3状態あり"},
-                    {h:"制作フロー",t:"【通常ルート】\nSTEP 0: テーマ確認（任意・精度向上）\nSTEP 1: 歌詞を生成（Q01があればすぐ押せる）\nSTEP 2: 歌詞チェック＋歌詞編集AIチャット\nSTEP 3〜7: タイトル・AI用ひらがな整形・プロンプト・プロンプトチェック・世界観カード\n\n【既存歌詞ルート】\nSTEP 1: 既存の歌詞を入力\nSTEP 0: テーマ逆算（任意・精度向上）\nSTEP 2〜7: そのまま利用可能\n\n制作前の確認：\n・テーマの核心を一言で言えるか\n・登場人物の関係性は明確か\n・感情の流れに起承転結があるか\n・終わり方は決まってるか\n・ターゲットリスナーは誰か\n\n制作後の確認：\n・同じパートの行数は揃ってるか\n・ひらがなの音数は揃ってるか\n・伏線と回収は成立してるか\n・比喩が多すぎないか\n・選択したジャンルらしいか\n・プロンプトが文字数上限以内に収まってるか"},
+                    {h:"制作フロー",t:"【通常ルート】\nSTEP 0: テーマ確認（任意・精度向上）\nSTEP 1: 歌詞を生成（Q01があればすぐ押せる）\nSTEP 2: 歌詞チェック＋歌詞編集AIチャット\nSTEP 3〜7: タイトル・AI用ひらがな整形・プロンプト・プロンプトチェック・世界観カード\n\n【既存歌詞ルート】\nSTEP 1: 既存の歌詞を入力\nSTEP 0: テーマ逆算（任意・精度向上）\nSTEP 2〜7: そのまま利用可能\n\n【CREATEタブの操作】\n・上部の進捗バーで入力状況を確認（0/13〜13/13）\n・Q01・Q12・ENDINGは常時表示（必須）\n・Q02〜Q11は項目名タップで開閉（任意・入力済みは内容を表示）\n・GENERATEのSTEP0〜7もタップで開閉できます\n\n制作前の確認：\n・テーマの核心を一言で言えるか\n・登場人物の関係性は明確か\n・感情の流れに起承転結があるか\n・終わり方は決まってるか\n・ターゲットリスナーは誰か\n\n制作後の確認：\n・同じパートの行数は揃ってるか\n・ひらがなの音数は揃ってるか\n・伏線と回収は成立してるか\n・比喩が多すぎないか\n・選択したジャンルらしいか\n・プロンプトが文字数上限以内に収まってるか"},
                     {h:"プロジェクトの保存について",t:"プロジェクト名を決めてSAVEするとこの端末のブラウザ内に保存される。別端末との共有には対応していません。\n\n保存対象：Q01〜Q12・ENDING・ジャンル設定・ボーカル設定・言語設定・構成・その他全設定・既存の歌詞\n\n【操作方法】\n①CREATEタブ上部のPROJECTセクションにプロジェクト名を入力\n②「SAVE」ボタンをタップで保存\n③「LOAD」ボタンをタップで一覧から選んで復元\n④プロジェクト名を変えて保存すると別名で新規保存できます"},
                   ].map(function(item,i){return (
-                    <div key={i} className="t-guide-item"><div className="t-guide-h">{item.h}</div><div className="t-guide-txt">{item.t}</div></div>
+                    <div key={i} className="t-guide-item">
+                      <button className="t-guide-h-btn" onClick={function(){setOpenGuideItems(function(prev){return prev.includes(i)?prev.filter(function(x){return x!==i;}):[...prev,i];});}}>
+                        <div className="t-guide-h">{item.h}</div>
+                        <span className={"t-guide-arr"+(openGuideItems.includes(i)?" open":"")}>▼</span>
+                      </button>
+                      <div className={"t-guide-body"+(openGuideItems.includes(i)?" open":"")}>
+                        <div className="t-guide-txt">{item.t}</div>
+                      </div>
+                    </div>
                   );})}
                 </div>
               </div>
